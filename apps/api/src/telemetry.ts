@@ -39,6 +39,7 @@ export async function startTelemetry(
   const endpoint = config.OTEL_EXPORTER_OTLP_ENDPOINT;
   sdk = new NodeSDK({
     serviceName: config.OTEL_SERVICE_NAME,
+    logRecordProcessors: [],
     traceExporter: exporters.traceExporter
       ? undefined
       : endpoint

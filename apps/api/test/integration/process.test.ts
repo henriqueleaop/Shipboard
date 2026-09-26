@@ -107,7 +107,7 @@ describe('compiled API process', () => {
       try {
         await waitForLiveness(port);
         child.kill('SIGTERM');
-        expect(await waitForExit(child)).toBe(0);
+        expect(await waitForExit(child), output()).toBe(0);
         expect(output()).toContain('api.shutdown_completed');
         const server = createServer();
         await new Promise<void>((resolve) =>
