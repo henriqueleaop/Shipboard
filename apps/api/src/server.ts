@@ -1,23 +1,19 @@
 import { pathToFileURL } from 'node:url';
 
-import { buildApp } from './app/build-app.js';
 import { readConfig } from './app/config.js';
 import { createShutdownHandler } from './app/shutdown.js';
 import { startTelemetry, stopTelemetry } from './telemetry.js';
 
 export async function main(): Promise<void> {
-  let app: Awaited<ReturnType<typeof buildApp>> | undefined;
+  let app:
+    | Awaited<ReturnType<typeof import('./app/build-app.js').buildApp>>
+    | undefined;
   try {
     const config = readConfig();
     await startTelemetry(config);
+    const { buildApp } = await import('./app/build-app.js');
     const createdApp = await buildApp(config);
     app = createdApp;
-    await createdApp.listen({ host: config.HOST, port: config.PORT });
-    createdApp.log.info({
-      event: 'api.started',
-      host: config.HOST,
-      port: config.PORT,
-    });
     const shutdown = createShutdownHandler({
       close: () => createdApp.close(),
       stopTelemetry,
@@ -28,13 +24,27 @@ export async function main(): Promise<void> {
         signal,
         () =>
           void shutdown(signal).then((success) => {
-            process.exitCode = success ? 0 : 1;
+            if (success) process.exitCode = 0;
+            else process.exit(1);
           }),
       );
     }
+    await createdApp.listen({ host: config.HOST, port: config.PORT });
+    createdApp.log.info({
+      event: 'api.started',
+      host: config.HOST,
+      port: config.PORT,
+    });
   } catch (error) {
     app?.log.error({ event: 'api.start_failed', err: error });
-    await stopTelemetry();
+    const cleanup = createShutdownHandler({
+      close: async () => {
+        await app?.close();
+      },
+      stopTelemetry,
+      log: (event, details) => app?.log.info({ event, ...details }),
+    });
+    if (!(await cleanup('startup-failure'))) process.exit(1);
     process.exitCode = 1;
   }
 }

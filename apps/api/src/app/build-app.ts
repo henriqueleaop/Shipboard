@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { Writable } from 'node:stream';
 
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -13,11 +14,17 @@ import { recordHttpRequest } from '../telemetry.js';
 const requestIdPattern = /^[A-Za-z0-9._-]{8,128}$/;
 const requestStartedAt = new WeakMap<object, number>();
 
+function requestTraceId(headers: Record<string, unknown>): string | undefined {
+  const active = trace.getSpanContext(context.active());
+  const extracted = propagation.extract(context.active(), headers);
+  return active?.traceId ?? trace.getSpanContext(extracted)?.traceId;
+}
+
 function problem(
   status: number,
   title: string,
   requestId: string,
-  traceId: string,
+  traceId?: string,
 ) {
   return {
     type: `https://shipboard.dev/problems/${status === 404 ? 'not-found' : 'internal-error'}`,
@@ -33,7 +40,10 @@ function problem(
   };
 }
 
-export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
+export async function buildApp(
+  config: AppConfig,
+  logStream?: Writable,
+): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -44,8 +54,9 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
         'res.headers.set-cookie',
         'password',
       ],
+      stream: logStream,
     },
-    requestIdHeader: 'x-request-id',
+    requestIdHeader: false,
     genReqId: (request) => {
       const requested = request.headers['x-request-id'];
       return typeof requested === 'string' && requestIdPattern.test(requested)
@@ -60,12 +71,10 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
 
   app.addHook('onRequest', async (request) => {
     requestStartedAt.set(request, performance.now());
-    const extracted = propagation.extract(context.active(), request.headers);
-    const spanContext = trace.getSpan(extracted)?.spanContext();
     request.log.info({
       event: 'http.request_received',
       requestId: request.id,
-      traceId: spanContext?.traceId,
+      traceId: requestTraceId(request.headers),
     });
   });
   app.addHook('onSend', async (request, reply) => {
@@ -79,6 +88,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     request.log.info({
       event: 'http.request_completed',
       requestId: request.id,
+      traceId: requestTraceId(request.headers),
       statusCode: reply.statusCode,
     });
   });
@@ -93,7 +103,9 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     return reply
       .type('application/problem+json')
       .code(404)
-      .send(problem(404, 'Not found', request.id, request.id));
+      .send(
+        problem(404, 'Not found', request.id, requestTraceId(request.headers)),
+      );
   });
   app.setErrorHandler((error, request, reply) => {
     request.log.error({
@@ -104,7 +116,14 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     return reply
       .type('application/problem+json')
       .code(500)
-      .send(problem(500, 'Internal server error', request.id, request.id));
+      .send(
+        problem(
+          500,
+          'Internal server error',
+          request.id,
+          requestTraceId(request.headers),
+        ),
+      );
   });
 
   return app;

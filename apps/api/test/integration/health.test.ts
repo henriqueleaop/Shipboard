@@ -33,4 +33,28 @@ describe('GET /health/live', () => {
     expect(response.json()).not.toHaveProperty('stack');
     await app.close();
   });
+  it('replaces invalid request ids and keeps unexpected errors private', async () => {
+    const app = await buildApp(
+      readConfig({ NODE_ENV: 'test', LOG_LEVEL: 'silent' }),
+    );
+    app.get('/test-error', () => {
+      throw new Error('private-error-fixture');
+    });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/test-error',
+      headers: { 'x-request-id': 'invalid id' },
+    });
+    expect(response.statusCode).toBe(500);
+    expect(response.headers['x-request-id']).not.toBe('invalid id');
+    expect(response.headers['content-type']).toContain(
+      'application/problem+json',
+    );
+    expect(response.json()).toMatchObject({
+      status: 500,
+      code: 'INTERNAL_ERROR',
+    });
+    expect(response.body).not.toContain('private-error-fixture');
+    await app.close();
+  });
 });

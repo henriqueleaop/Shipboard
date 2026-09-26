@@ -15,9 +15,9 @@ pnpm dev:web
 pnpm dev:api
 ```
 
-Open `http://localhost:3000` for the independent web shell and `http://127.0.0.1:3001/health/live` for API liveness. Copy `.env.example` to `.env` when overriding API defaults. The API validates `NODE_ENV`, `HOST`, `PORT`, `LOG_LEVEL`, `WEB_ORIGIN`, `OTEL_SERVICE_NAME`, and optional `OTEL_EXPORTER_OTLP_ENDPOINT`; no database or OTLP collector is required.
+Open `http://localhost:3000` for the independent web shell and `http://127.0.0.1:3001/health/live` for API liveness. Copy `.env.example` to `.env` when overriding API defaults. The API validates `NODE_ENV`, `HOST`, `PORT`, `LOG_LEVEL`, `WEB_ORIGIN`, `OTEL_SERVICE_NAME`, and optional `OTEL_EXPORTER_OTLP_ENDPOINT`; no database or OTLP collector is required. When set, the OTLP value is a base URL such as `http://localhost:4318`; the API exports traces to `/v1/traces` and metrics to `/v1/metrics`.
 
-Use Ctrl+C to stop either process. The API handles SIGINT/SIGTERM by closing Fastify and OpenTelemetry before exit.
+Use Ctrl+C to stop either process. The API handles SIGINT/SIGTERM by closing Fastify and OpenTelemetry within five seconds before exit.
 
 ## Validation and production builds
 

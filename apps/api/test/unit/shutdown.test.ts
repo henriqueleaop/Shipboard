@@ -17,12 +17,37 @@ describe('shutdown handler', () => {
   });
   it('reports cleanup failure', async () => {
     const log = vi.fn();
+    const stopTelemetry = vi.fn().mockResolvedValue(undefined);
     const shutdown = createShutdownHandler({
       close: vi.fn().mockRejectedValue(new Error('close failed')),
-      stopTelemetry: vi.fn(),
+      stopTelemetry,
       log,
     });
     await expect(shutdown('SIGINT')).resolves.toBe(false);
+    expect(stopTelemetry).toHaveBeenCalledOnce();
     expect(log).toHaveBeenCalledWith('api.shutdown_failed', expect.any(Object));
+  });
+
+  it('returns a failure within the deadline when cleanup hangs', async () => {
+    vi.useFakeTimers();
+    try {
+      const close = vi.fn(() => new Promise<void>(() => undefined));
+      const stopTelemetry = vi.fn().mockResolvedValue(undefined);
+      const log = vi.fn();
+      const shutdown = createShutdownHandler(
+        { close, stopTelemetry, log },
+        100,
+      );
+      const result = shutdown('SIGTERM');
+      await vi.advanceTimersByTimeAsync(100);
+      await expect(result).resolves.toBe(false);
+      expect(close).toHaveBeenCalledOnce();
+      expect(stopTelemetry).toHaveBeenCalledOnce();
+      expect(log).toHaveBeenCalledWith('api.shutdown_failed', {
+        error: expect.objectContaining({ message: 'Shutdown timed out.' }),
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
