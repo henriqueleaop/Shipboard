@@ -4,11 +4,11 @@
 
 ## Active Sprint
 
-None. Sprint 002 is closed; US-003 and US-024 are `DONE`. Sprint 001 is closed.
+Sprint 003 implementation is on `sprint/003-production-containers`; local gates pass, remote CI is pending. Sprint 002 and Sprint 001 are closed. US-025–US-027 remain `BACKLOG` pending formal closure.
 
 ## Current Stage
 
-Runnable monorepo with PostgreSQL infrastructure and database readiness. No product journey is implemented yet.
+Runnable monorepo with PostgreSQL infrastructure, database readiness, production application images, and an optional complete local Compose stack. No product journey is implemented yet.
 
 ## Implemented
 
@@ -20,10 +20,12 @@ Runnable monorepo with PostgreSQL infrastructure and database readiness. No prod
 - Drizzle/pg pool, explicit compiled migration command, versioned table-free baseline migration, and PostgreSQL 18 Testcontainers integration tests.
 - `GET /health/ready` with shared success/503 contracts, bounded database check, safe failure handling, database telemetry, and pool cleanup.
 - CI workflow configured with parallel quality, unit, integration, and Compose gates followed by a build gate.
+- Multi-stage, non-root API and standalone web images with pinned Node base digest and production runtime artifacts.
+- Optional Compose `full` profile, internal web-to-API probe, explicit image migration command, and isolated container smoke runner. CI configuration includes image builds and runtime smoke.
 
 ## Infrastructure
 
-The web shell remains independent. The API requires a valid `DATABASE_URL` at startup; it can serve liveness while PostgreSQL is unavailable, and readiness reports current availability. Local PostgreSQL runs through Compose; integration tests provision their own containers. No application Dockerfiles or full-stack Compose profile exist.
+The web shell remains independent. The API requires a valid `DATABASE_URL` at startup; it can serve liveness while PostgreSQL is unavailable, and readiness reports current availability. Default Compose starts only PostgreSQL; the optional `full` profile runs web and API images with PostgreSQL. Integration tests provision their own containers. Migrations remain explicit.
 
 ## Product Capabilities
 
@@ -35,12 +37,12 @@ PostgreSQL 18 connectivity and a table-free Drizzle baseline migration exist. No
 
 ## Validation Status
 
-Sprint 002 frozen install, formatting, lint, typecheck, unit tests, clean production builds, and API/PostgreSQL integration tests pass locally. A disposable Compose project verified PostgreSQL 18 health, volume persistence, and native API readiness recovery (200 → 503 → 200); the project and its test volume were removed. Integration tests passed with development Compose stopped. [Linux CI run 36271981493](https://github.com/henriqueleaop/Shipboard/actions/runs/36271981493) passed quality, unit, integration, Compose, and build gates for commit `d37629c`, including SIGTERM shutdown coverage.
+Sprint 003 local frozen install, formatting, lint, typecheck, unit tests, production builds, and API/PostgreSQL integration tests passed. Both application images built without cache; isolated API, web, and full Compose smoke passed, covering non-root runtime, health, web-to-API connectivity, explicit migration replay, outage/recovery, data persistence, and container SIGTERM. Native standalone web startup passed. Linux CI for Sprint 003 has not run; the workflow triggers on PR or `main`. [Sprint 002 Linux CI run 36271981493](https://github.com/henriqueleaop/Shipboard/actions/runs/36271981493) remains prior-sprint evidence only.
 
 ## Known Issues / Technical Debt
 
-No unresolved Sprint 002 gate. Application container images, authentication, domain persistence, and product journeys remain future backlog scope.
+Sprint 003 remote CI evidence is pending. Authentication, domain persistence, and product journeys remain future backlog scope.
 
 ## Important Decisions
 
-Sprint 002 implements US-003 and US-024 only; see `docs/sprints/sprint-002.md`. The architecture's `BaseEntity` and soft-delete policy applies when a concrete persistent domain entity is introduced; none exists yet. Planning guidance now favors cohesive, substantial increments with small validated checkpoints. Normative decisions remain in the architecture and backlog.
+Sprint 003 implementation follows `docs/sprints/sprint-003.md`; its backlog items are not yet accepted or closed. The architecture's `BaseEntity` and soft-delete policy applies when a concrete persistent domain entity is introduced; none exists yet. Normative decisions remain in the architecture and backlog.
