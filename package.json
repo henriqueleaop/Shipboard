@@ -14,6 +14,7 @@
     "typecheck": "pnpm --filter @shipboard/contracts build && pnpm --filter @shipboard/api typecheck && pnpm --filter @shipboard/web typecheck",
     "test:unit": "pnpm -r --if-present test:unit",
     "test:integration": "pnpm --filter @shipboard/api test:integration",
+    "test:containers": "node scripts/test-containers.mjs",
     "build": "pnpm --filter @shipboard/contracts build && pnpm --filter @shipboard/api build && pnpm --filter @shipboard/web build"
   },
   "devDependencies": {

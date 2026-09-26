@@ -1,4 +1,51 @@
 services:
+  api:
+    profiles: [full]
+    image: shipboard-api:sprint-003
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      DATABASE_URL: ${COMPOSE_DATABASE_URL:-}
+    ports:
+      - '127.0.0.1:${API_PORT:-3001}:3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      default:
+        aliases: [api-alt]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3001/health/ready',{signal:AbortSignal.timeout(2000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    stop_grace_period: 10s
+
+  web:
+    profiles: [full]
+    image: shipboard-web:sprint-003
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3001}
+    ports:
+      - '127.0.0.1:${WEB_PORT:-3000}:3000'
+
   postgres:
     image: postgres:18.1
     environment:
