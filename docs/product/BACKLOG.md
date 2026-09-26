@@ -1152,67 +1152,41 @@ These items are not authorized for implementation until promoted into fully spec
 
 # 16. Recommended implementation order
 
-The backlog is intended to be implemented through microsprints.
-
-Initial sequence:
+The backlog is intended to be implemented through substantial, cohesive microsprints. Sprints 001 and 002 are closed; the remaining sequence groups related stories into capabilities or a significant architectural stage:
 
 ```text
 Sprint 001
-Repository + frontend/backend bootstrap
+Runnable repository and API foundation (US-001, US-002) — closed
 
 Sprint 002
-PostgreSQL via Compose + Drizzle + migrations + health/readiness
+PostgreSQL via Compose, Drizzle, migrations, and readiness (US-003, US-024) — closed
 
 Sprint 003
-API production Dockerfile + image validation
+Production API and web images plus complete local Compose stack (US-025, US-026, US-027)
 
 Sprint 004
-Registration + authentication foundation
+Registration, login, logout, and current principal (US-004–US-007)
 
 Sprint 005
-Login/logout + Principal
+Owner board creation, management view, and editing (US-008–US-010)
 
 Sprint 006
-Create board
+Public board and suggestion submission, reading, and pagination (US-011, US-013–US-015)
 
 Sprint 007
-Public board page
+Vote and remove vote, including visible counts, sorting, and concurrency behavior (US-012, US-016, US-017)
 
 Sprint 008
-Submit suggestion
+Owner suggestion review and status management with optimistic concurrency (US-018, US-019)
 
 Sprint 009
-Suggestion list + sorting
+Public and owner experience with critical E2E journeys (US-020, US-021)
 
 Sprint 010
-Voting
-
-Sprint 011
-Remove vote
-
-Sprint 012
-Owner suggestion dashboard
-
-Sprint 013
-Suggestion status transition + concurrency
-
-Sprint 014
-UI hardening + errors + loading + responsive behavior
-
-Sprint 015
-Critical E2E journey + deployment hardening
-
-Sprint 016
-Demo data + README + screenshots
-
-Sprint 017
-Frontend production Dockerfile + image validation
-
-Sprint 018
-Complete Docker Compose stack
+Demo-ready content and project documentation (US-022, US-023)
 ```
 
-This ordering is advisory.
+This grouping and ordering are advisory, not preapproved sprint scopes. A plan may regroup or further divide work at a meaningful capability boundary when repository evidence shows that the proposed increment is too large or its dependencies have changed. Preserve story acceptance criteria and validate ordered implementation checkpoints within every sprint.
 
 `$planejar-sprint` must inspect the repository and previous sprint results before deciding whether the proposed scope remains appropriate.
 

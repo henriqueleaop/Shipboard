@@ -43,4 +43,4 @@ No unresolved Sprint 002 gate. Application container images, authentication, dom
 
 ## Important Decisions
 
-Sprint 002 implements US-003 and US-024 only; see `docs/sprints/sprint-002.md`. The architecture's `BaseEntity` and soft-delete policy applies when a concrete persistent domain entity is introduced; none exists yet. Normative decisions remain in the architecture and backlog.
+Sprint 002 implements US-003 and US-024 only; see `docs/sprints/sprint-002.md`. The architecture's `BaseEntity` and soft-delete policy applies when a concrete persistent domain entity is introduced; none exists yet. Planning guidance now favors cohesive, substantial increments with small validated checkpoints. Normative decisions remain in the architecture and backlog.
