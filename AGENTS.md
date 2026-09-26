@@ -1,0 +1,31 @@
+# Shipboard Agent Instructions
+
+## Containerization
+
+Follow the containerization strategy defined in
+`docs/architecture/ARCHITECTURE.md`.
+
+When changing runtime dependencies, build configuration, ports,
+environment variables, or application startup behavior, verify whether
+the relevant Dockerfile or Compose configuration must also change.
+
+Do not make integration tests depend on the local Compose stack.
+
+Do not put secrets into Dockerfiles, Compose files, or committed
+environment files.
+
+When a sprint affects containerized applications, validate the relevant
+Docker image build before declaring the sprint complete.
+
+## Persistent project state
+
+Before planning or implementing, read `docs/project/STATE.md`.
+
+Treat the code and normative documents as higher-authority sources when
+they conflict with the snapshot, and resolve or report the divergence.
+
+After completing and validating a significant unit of work, update
+`docs/project/STATE.md` to reflect only the verified repository state.
+
+Never record planned or unvalidated work. Keep the snapshot concise; do
+not turn it into a changelog or architecture document.
