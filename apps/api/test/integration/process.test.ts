@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createServer } from 'node:net';
 
 import { describe, expect, it } from 'vitest';
+import { PostgreSqlContainer } from '@testcontainers/postgresql';
 
 import { liveHealthResponseSchema } from '@shipboard/contracts';
 
@@ -14,7 +15,10 @@ async function availablePort(): Promise<number> {
   return address.port;
 }
 
-function startApi(port: number | string) {
+function startApi(
+  port: number | string,
+  databaseUrl: string | null = 'postgresql://test:test@127.0.0.1:1/test',
+) {
   const child = spawn(process.execPath, ['dist/server.js'], {
     cwd: process.cwd(),
     env: {
@@ -22,6 +26,7 @@ function startApi(port: number | string) {
       NODE_ENV: 'test',
       HOST: '127.0.0.1',
       PORT: String(port),
+      DATABASE_URL: databaseUrl ?? undefined,
       LOG_LEVEL: 'info',
       OTEL_EXPORTER_OTLP_ENDPOINT: undefined,
     },
@@ -82,6 +87,8 @@ describe('compiled API process', () => {
         status: 'ok',
       });
       expect(output()).toContain('api.started');
+      const readiness = await fetch(`http://127.0.0.1:${port}/health/ready`);
+      expect(readiness.status).toBe(503);
     } finally {
       child.kill();
       await waitForExit(child);
@@ -98,6 +105,43 @@ describe('compiled API process', () => {
       if (child.exitCode === null) child.kill();
     }
   }, 12_000);
+
+  it('rejects a missing database URL before listening', async () => {
+    const { child, output } = startApi(await availablePort(), null);
+    try {
+      expect(await waitForExit(child)).not.toBe(0);
+      expect(output()).not.toContain('api.started');
+    } finally {
+      if (child.exitCode === null) child.kill();
+    }
+  }, 12_000);
+
+  it('serves readiness from PostgreSQL 18 without automatic migrations', async () => {
+    const container = await new PostgreSqlContainer('postgres:18.1').start();
+    const port = await availablePort();
+    const { child } = startApi(port, container.getConnectionUri());
+    try {
+      await waitForLiveness(port);
+      const readiness = await fetch(`http://127.0.0.1:${port}/health/ready`);
+      expect(readiness.status).toBe(200);
+      expect(readiness.headers.get('cache-control')).toBe('no-store');
+      expect(await readiness.json()).toEqual({ status: 'ok' });
+      const check = await container.exec([
+        'psql',
+        '-U',
+        container.getUsername(),
+        '-d',
+        container.getDatabase(),
+        '-Atqc',
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'drizzle' AND table_name = '__drizzle_migrations'",
+      ]);
+      expect(check.output.trim()).toBe('0');
+    } finally {
+      child.kill();
+      await waitForExit(child);
+      await container.stop();
+    }
+  }, 45_000);
 
   it.skipIf(process.platform === 'win32')(
     'handles SIGTERM and releases its port on Linux',
