@@ -41,4 +41,4 @@ Treat the code and normative documents as authoritative if they differ from `STA
 
 ## Stopping condition
 
-After completing the closure work or recording why the sprint cannot close, stop. Do not plan, start, or modify the next sprint automatically.
+After completing the closure work or recording why the sprint cannot close, commit and push any repository changes as required by `AGENTS.md`, then stop. Do not plan, start, or modify the next sprint automatically.

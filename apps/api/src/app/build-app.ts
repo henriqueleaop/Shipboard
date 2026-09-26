@@ -4,15 +4,48 @@ import type { Writable } from 'node:stream';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import { context, propagation, trace } from '@opentelemetry/api';
-import { liveHealthResponseSchema } from '@shipboard/contracts';
+import {
+  context,
+  propagation,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
+import {
+  liveHealthResponseSchema,
+  readyHealthResponseSchema,
+  unavailableHealthResponseSchema,
+} from '@shipboard/contracts';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { AppConfig } from './config.js';
-import { recordHttpRequest } from '../telemetry.js';
+import { createDatabase } from '../infrastructure/database/client.js';
+import { recordDatabaseCheck, recordHttpRequest } from '../telemetry.js';
 
 const requestIdPattern = /^[A-Za-z0-9._-]{8,128}$/;
 const requestStartedAt = new WeakMap<object, number>();
+const readinessDeadlineMs = 1_900;
+
+export type DatabaseCheck = Pick<
+  ReturnType<typeof createDatabase>,
+  'check' | 'close'
+>;
+
+async function checkWithinDeadline(database: DatabaseCheck): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      database.check().then(
+        () => true,
+        () => false,
+      ),
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => resolve(false), readinessDeadlineMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 function requestTraceId(headers: Record<string, unknown>): string | undefined {
   const active = trace.getSpanContext(context.active());
@@ -43,6 +76,7 @@ function problem(
 export async function buildApp(
   config: AppConfig,
   logStream?: Writable,
+  database?: DatabaseCheck,
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -64,6 +98,17 @@ export async function buildApp(
         : randomUUID();
     },
   });
+
+  const activeDatabase =
+    database ??
+    createDatabase(config.DATABASE_URL, () => {
+      app.log.warn({
+        event: 'database.idle_connection_failed',
+        errorCode: 'DATABASE_UNAVAILABLE',
+      });
+    });
+
+  app.addHook('onClose', async () => activeDatabase.close());
 
   await app.register(helmet);
   await app.register(cors, { origin: config.WEB_ORIGIN, credentials: true });
@@ -93,11 +138,75 @@ export async function buildApp(
     });
   });
 
-  app.get('/health/live', async (_request, reply) => {
-    return reply
-      .code(200)
-      .send(liveHealthResponseSchema.parse({ status: 'ok' }));
-  });
+  app.get(
+    '/health/live',
+    { config: { rateLimit: false } },
+    async (_request, reply) => {
+      return reply
+        .code(200)
+        .send(liveHealthResponseSchema.parse({ status: 'ok' }));
+    },
+  );
+
+  app.get(
+    '/health/ready',
+    { config: { rateLimit: false } },
+    async (request, reply) => {
+      const startedAt = performance.now();
+      const parent = propagation.extract(context.active(), request.headers);
+      const available = await context.with(parent, () =>
+        trace
+          .getTracer('shipboard-api')
+          .startActiveSpan('database.readiness', async (span) => {
+            try {
+              const success = await checkWithinDeadline(activeDatabase);
+              if (!success) {
+                span.setStatus({
+                  code: SpanStatusCode.ERROR,
+                  message: 'database unavailable',
+                });
+              }
+              return success;
+            } finally {
+              span.end();
+            }
+          }),
+      );
+      recordDatabaseCheck(available, performance.now() - startedAt);
+      reply.header('cache-control', 'no-store');
+      if (available) {
+        request.log.info({
+          event: 'database.readiness_succeeded',
+          requestId: request.id,
+          traceId: requestTraceId(request.headers),
+        });
+        return reply
+          .code(200)
+          .send(readyHealthResponseSchema.parse({ status: 'ok' }));
+      }
+      request.log.warn({
+        event: 'database.readiness_failed',
+        errorCode: 'DATABASE_UNAVAILABLE',
+        requestId: request.id,
+        traceId: requestTraceId(request.headers),
+      });
+      return reply
+        .type('application/problem+json')
+        .code(503)
+        .send(
+          unavailableHealthResponseSchema.parse({
+            type: 'https://shipboard.dev/problems/service-unavailable',
+            title: 'Service unavailable',
+            status: 503,
+            detail: 'A required dependency is unavailable.',
+            instance: '/health/ready',
+            code: 'SERVICE_UNAVAILABLE',
+            requestId: request.id,
+            traceId: requestTraceId(request.headers),
+          }),
+        );
+    },
+  );
 
   app.setNotFoundHandler((request, reply) => {
     return reply

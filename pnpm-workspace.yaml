@@ -3,8 +3,10 @@ packages:
   - packages/*
 
 allowBuilds:
+  cpu-features: false
   esbuild: true
   protobufjs: true
+  ssh2: false
 
 minimumReleaseAgeExclude:
   - '@types/node@24.19.0'

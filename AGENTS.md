@@ -37,3 +37,15 @@ After completing and validating a significant unit of work, update
 
 Never record planned or unvalidated work. Keep the snapshot concise; do
 not turn it into a changelog or architecture document.
+
+## Git handoff
+
+For every task that changes the repository, run the applicable validation,
+commit the task's changes, and push the working branch before reporting the
+task complete. This applies to sprint planning, implementation, closure,
+and documentation or policy changes. Keep commits scoped to the task.
+
+If work remains blocked or a gate fails, do not present it as complete or
+mark backlog items `DONE`. Commit and push any changes with an accurate
+partial-work message, and report the failed gate or blocker. If commit or
+push itself fails, report that explicitly.

@@ -1,7 +1,10 @@
 export interface ShutdownDependencies {
   close: () => Promise<void>;
   stopTelemetry: () => Promise<void>;
-  log: (event: string, details: { signal?: string; error?: Error }) => void;
+  log: (
+    event: string,
+    details: { signal?: string; errorCode?: string },
+  ) => void;
 }
 
 export const shutdownTimeoutMs = 5_000;
@@ -20,30 +23,36 @@ export function createShutdownHandler(
         timer = setTimeout(() => resolve('timeout'), timeoutMs);
       });
 
-      const cleanup = Promise.allSettled([
-        Promise.resolve().then(dependencies.close),
-        Promise.resolve().then(dependencies.stopTelemetry),
-      ]);
-
       try {
-        const result = await Promise.race([cleanup, timeout]);
-        if (result === 'timeout') {
+        const closeResult = await Promise.race([
+          Promise.resolve()
+            .then(dependencies.close)
+            .then(
+              () => 'ok' as const,
+              () => 'failed' as const,
+            ),
+          timeout,
+        ]);
+        const telemetryResult = await Promise.race([
+          Promise.resolve()
+            .then(dependencies.stopTelemetry)
+            .then(
+              () => 'ok' as const,
+              () => 'failed' as const,
+            ),
+          timeout,
+        ]);
+        if (closeResult === 'timeout' || telemetryResult === 'timeout') {
           throw new Error('Shutdown timed out.');
         }
-        const failed = result.find((step) => step.status === 'rejected');
-        if (failed?.status === 'rejected') {
-          throw failed.reason instanceof Error
-            ? failed.reason
-            : new Error('Shutdown cleanup failed.');
+        if (closeResult === 'failed' || telemetryResult === 'failed') {
+          throw new Error('Shutdown cleanup failed.');
         }
         dependencies.log('api.shutdown_completed', { signal });
         return true;
-      } catch (error) {
+      } catch {
         dependencies.log('api.shutdown_failed', {
-          error:
-            error instanceof Error
-              ? error
-              : new Error('Unknown shutdown error'),
+          errorCode: 'SHUTDOWN_FAILED',
         });
         return false;
       } finally {

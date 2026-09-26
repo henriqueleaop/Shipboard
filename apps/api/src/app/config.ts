@@ -10,6 +10,11 @@ const environmentSchema = z.object({
     .enum(['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'])
     .default('info'),
   WEB_ORIGIN: z.url().default('http://localhost:3000'),
+  DATABASE_URL: z
+    .url()
+    .refine((value) =>
+      ['postgres:', 'postgresql:'].includes(new URL(value).protocol),
+    ),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
   OTEL_SERVICE_NAME: z.string().min(1).max(100).default('shipboard-api'),
 });
