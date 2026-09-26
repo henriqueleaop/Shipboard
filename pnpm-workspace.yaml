@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+  protobufjs: true
+
+minimumReleaseAgeExclude:
+  - '@types/node@24.19.0'
