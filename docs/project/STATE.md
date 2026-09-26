@@ -27,7 +27,7 @@ None beyond the static web shell and API liveness probe.
 
 ## Database
 
-No PostgreSQL service, Drizzle schema, migrations, or readiness probe exists.
+No PostgreSQL service, Drizzle schema, migrations, readiness probe, or persistent domain entity exists.
 
 ## Validation Status
 
@@ -39,4 +39,4 @@ No unresolved Sprint 001 gate. Database, readiness, container images, and produc
 
 ## Important Decisions
 
-Sprint 001 intentionally excludes PostgreSQL, Compose, and production Docker images; see `docs/sprints/sprint-001.md`. Normative decisions remain in the architecture and backlog.
+Sprint 001 intentionally excludes PostgreSQL, Compose, and production Docker images; see `docs/sprints/sprint-001.md`. The architecture now requires persistent domain entities to inherit from `BaseEntity` and use soft delete; this is a documented policy, not implemented functionality. Normative decisions remain in the architecture and backlog.

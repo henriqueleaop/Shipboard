@@ -292,7 +292,7 @@ modules/votes/
 
 Cross-module interaction occurs through an explicitly exported application interface.
 
-No generic `BaseRepository`, `BaseService`, `BaseEntity`, or similar abstraction may be introduced.
+Generic `BaseRepository`, `BaseService`, and other speculative abstractions are prohibited. `BaseEntity` is the deliberate, narrowly scoped exception for persistent domain entities described in Section 9; it does not authorize other generic base classes.
 
 No cyclic dependencies are allowed.
 
@@ -330,9 +330,24 @@ Every table must have explicit constraints corresponding to important invariants
 
 Database constraints are considered the final consistency boundary even when the same invariant is checked at application level.
 
+Persistent domain entities map conceptually to `id`, `created_at`, `updated_at`, and nullable `deleted_at` columns. Constraints and indexes must account for logical deletion. Whether a unique value can be reused after deletion is a business decision for each invariant, not a global rule. A PostgreSQL partial unique index with `WHERE deleted_at IS NULL` is appropriate only when the requirement permits reuse.
+
 ---
 
 # 9. Domain entities vs persistence records
+
+## Persistent domain entity convention
+
+Every persistent domain entity inherits from `BaseEntity`, a domain-model abstraction limited to:
+
+- `id`: stable identity, immutable after creation; ordinary Shipboard entities use the UUID strategy from Section 8;
+- `createdAt`: set at creation and never changed afterward;
+- `updatedAt`: the last relevant persisted-state change, updated when that state changes;
+- `deletedAt`: `null` while active, otherwise the timestamp of logical removal.
+
+`BaseEntity` has no Drizzle, Fastify, PostgreSQL, HTTP Zod, Better Auth, decorator, or infrastructure dependency. Value Objects, DTOs, HTTP contracts, persistence records, and other non-entity objects do not inherit from it. Do not create an unused base class before a concrete persistent domain entity needs it.
+
+Soft delete is the default for persistent domain entities. Normal removal sets `deletedAt` and `updatedAt` to the same current timestamp; ordinary business operations do not physically delete the row. Normal queries include only active entities unless a use case explicitly requests removed ones. Persistence adapters must express and test this filtering explicitly rather than relying on hidden global filters. Hard delete is reserved for explicitly defined administrative cleanup, tests, migrations, or retention policies; it is not a product operation without a requirement. No restore capability is implied.
 
 Drizzle records are not domain entities.
 
@@ -420,7 +435,8 @@ SET
     ...,
     version = version + 1
 WHERE id = ?
-  AND version = 3;
+  AND version = 3
+  AND deleted_at IS NULL;
 ```
 
 If no row is updated because the version has changed:
@@ -437,19 +453,17 @@ If `If-Match` is required and absent:
 
 Blind overwrites of mutable owner-managed state are prohibited.
 
+For an entity subject to optimistic locking, soft delete is a normal concurrent mutation: require the current version, update the deletion and modification timestamps, and advance the version atomically. It must not bypass the existing stale-write protections.
+
 ## Votes
 
 Voting does not use a mutable vote counter as the source of truth.
 
 The database stores individual votes.
 
-A unique constraint guarantees:
+A database constraint must guarantee at most one active vote per `(suggestion_id, user_id)` pair.
 
-```text
-UNIQUE(suggestion_id, user_id)
-```
-
-Vote count is derived from the vote records.
+The concrete uniqueness and re-vote strategy must be decided against the applicable product requirement when votes are implemented; do not silently assume that a logically deleted vote permits or forbids a new vote. Vote count is derived from active vote records.
 
 This prevents lost-update problems on a shared counter.
 
@@ -465,7 +479,7 @@ HTTP semantics and database constraints are preferred before introducing custom 
 
 `DELETE` operations are designed to be idempotent.
 
-Creating the same vote twice is treated as the same logical operation because of the unique vote constraint.
+Creating the same active vote twice is treated as the same logical operation under the active-vote uniqueness constraint.
 
 ## Creation commands
 

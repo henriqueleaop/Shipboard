@@ -17,6 +17,14 @@ environment files.
 When a sprint affects containerized applications, validate the relevant
 Docker image build before declaring the sprint complete.
 
+## Persistent domain entities
+
+Persistent domain entities must inherit from the narrowly scoped `BaseEntity`
+convention in `docs/architecture/ARCHITECTURE.md`, including its identity,
+timestamp, and soft-delete rules. Plan and test active-record queries and
+deletion behavior when introducing persistence. This exception does not permit
+speculative generic repositories, services, or other base abstractions.
+
 ## Persistent project state
 
 Before planning or implementing, read `docs/project/STATE.md`.
