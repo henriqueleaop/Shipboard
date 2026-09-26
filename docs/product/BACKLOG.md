@@ -168,7 +168,7 @@ Acceptance criteria:
 **As a developer, I want PostgreSQL and migrations configured so that persistent product features can be implemented safely.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -189,7 +189,7 @@ Acceptance criteria:
 **As a developer, I want PostgreSQL available through Docker Compose so that local infrastructure is reproducible.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 

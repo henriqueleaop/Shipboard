@@ -4,7 +4,7 @@
 
 ## Active Sprint
 
-Sprint 002 implementation is locally validated; formal closure is pending. US-003 and US-024 remain `BACKLOG` until `$encerrar-sprint 2` verifies acceptance and updates the backlog. Sprint 001 is closed.
+None. Sprint 002 is closed; US-003 and US-024 are `DONE`. Sprint 001 is closed.
 
 ## Current Stage
 
@@ -35,11 +35,11 @@ PostgreSQL 18 connectivity and a table-free Drizzle baseline migration exist. No
 
 ## Validation Status
 
-Sprint 002 frozen install, formatting, lint, typecheck, unit tests, clean production builds, and API/PostgreSQL integration tests pass locally. A disposable Compose project verified PostgreSQL 18 health, volume persistence, and native API readiness recovery (200 → 503 → 200); the project and its test volume were removed. Integration tests passed with development Compose stopped. The updated Linux CI workflow has not run remotely; Linux SIGTERM and CI Compose evidence remain pending for closure.
+Sprint 002 frozen install, formatting, lint, typecheck, unit tests, clean production builds, and API/PostgreSQL integration tests pass locally. A disposable Compose project verified PostgreSQL 18 health, volume persistence, and native API readiness recovery (200 → 503 → 200); the project and its test volume were removed. Integration tests passed with development Compose stopped. [Linux CI run 36271981493](https://github.com/henriqueleaop/Shipboard/actions/runs/36271981493) passed quality, unit, integration, Compose, and build gates for commit `d37629c`, including SIGTERM shutdown coverage.
 
 ## Known Issues / Technical Debt
 
-No known local Sprint 002 gate failure. Remote CI evidence is pending. Application container images, authentication, domain persistence, and product journeys remain future backlog scope.
+No unresolved Sprint 002 gate. Application container images, authentication, domain persistence, and product journeys remain future backlog scope.
 
 ## Important Decisions
 
