@@ -1,54 +1,42 @@
 # Project State
 
-> This file is a concise snapshot of the real repository state. It does not replace the code, `docs/architecture/ARCHITECTURE.md`, `docs/product/BACKLOG.md`, or sprint specifications.
+> This is a concise snapshot of the verified repository state. The code, `docs/architecture/ARCHITECTURE.md`, and `docs/product/BACKLOG.md` remain authoritative.
 
 ## Active Sprint
 
-Sprint 001 — planned, not started. See `docs/sprints/sprint-001.md`.
+None. Sprint 001 is closed; US-001 and US-002 are `DONE`.
 
 ## Current Stage
 
-Project foundation planning. The repository has not yet been bootstrapped as the planned pnpm monorepo.
+Runnable monorepo foundation. No product journey is implemented yet.
 
 ## Implemented
 
-- Product, architecture, and MVP specification documents;
-- Versioned backlog and Sprint 001 plan;
-- Agent guidance, sprint-planning guidance, and containerization policy.
-
-No application code or product functionality is implemented.
+- Pinned Node.js 24/pnpm workspace with strict TypeScript, root validation scripts, and shared Zod liveness contract.
+- Independent Next.js web shell and Fastify API production builds and startup.
+- API configuration validation, `GET /health/live`, structured/redacted logs, request and trace context, HTTP telemetry, safe errors, and bounded graceful shutdown.
+- Unit and HTTP/process integration tests, GitHub Actions validation on pull requests and `main`, environment example, and local run instructions.
 
 ## Infrastructure
 
-No pnpm workspace, application packages, CI workflow, Compose configuration, Dockerfiles, or runnable services exist yet.
+The native web and API applications run without PostgreSQL or an OTLP collector. No Dockerfiles or Compose stack exist; their backlog stories remain open.
 
 ## Product Capabilities
 
-None implemented.
-
-## API
-
-No API application, routes, health endpoints, or contracts implementation exists.
+None beyond the static web shell and API liveness probe.
 
 ## Database
 
-No PostgreSQL service, Drizzle configuration, schema, migration, or Testcontainers integration exists.
+No PostgreSQL service, Drizzle schema, migrations, or readiness probe exists.
 
 ## Validation Status
 
-No application validation gates have been run: the root package manifest, scripts, and applications do not yet exist.
+The frozen install, formatting, lint, typecheck, unit tests, production builds, and API integration tests pass locally. Linux CI for commit `636fc09` passed the same gates, including SIGTERM shutdown coverage: https://github.com/henriqueleaop/Shipboard/actions/runs/36268460246.
 
 ## Known Issues / Technical Debt
 
-- The repository does not yet match the target monorepo topology in `ARCHITECTURE.md`; this is the explicit scope of Sprint 001.
-- The architecture and backlog define containerization deliverables, but none are implemented or currently buildable.
-- No ADR directory or ADR records exist.
+No unresolved Sprint 001 gate. Database, readiness, container images, and product journeys remain future backlog scope, not delivered functionality.
 
 ## Important Decisions
 
-- Normative architecture and product decisions remain in `docs/architecture/ARCHITECTURE.md` and `docs/product/BACKLOG.md`.
-- Sprint 001 is intentionally limited to the monorepo bootstrap; PostgreSQL Compose and production container images are scheduled later in the documented sprint sequence.
-
-## Next Expected Action
-
-Implement and validate Sprint 001 according to `docs/sprints/sprint-001.md`. Update this snapshot only after that work is actually completed and validated.
+Sprint 001 intentionally excludes PostgreSQL, Compose, and production Docker images; see `docs/sprints/sprint-001.md`. Normative decisions remain in the architecture and backlog.

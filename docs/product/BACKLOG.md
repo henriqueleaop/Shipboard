@@ -128,7 +128,7 @@ The frontend must provide a production-ready Docker image independent of its pri
 **As a developer, I want the repository structure initialized so that frontend, backend and shared contracts can evolve independently.**
 
 Priority: `P0`  
-Status: `READY`
+Status: `DONE`
 
 Acceptance criteria:
 
@@ -147,7 +147,7 @@ Acceptance criteria:
 **As a developer, I want a minimal Fastify application so that backend capabilities can be added incrementally.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
