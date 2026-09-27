@@ -9,7 +9,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Shipboard',
-  description: 'Product feedback boards, launching soon.',
+  description: 'A clearer route from product ideas to shipped features.',
 };
 
 export default async function RootLayout({

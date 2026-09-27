@@ -33,6 +33,9 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <Link className="brand" href="/">
+        <span className="brand-mark" aria-hidden="true">
+          S
+        </span>
         Shipboard
       </Link>
       <nav aria-label="Main navigation">
