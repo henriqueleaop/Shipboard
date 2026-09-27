@@ -14,13 +14,18 @@
     "typecheck": "pnpm --filter @shipboard/contracts build && pnpm --filter @shipboard/api typecheck && pnpm --filter @shipboard/web typecheck",
     "test:unit": "pnpm -r --if-present test:unit",
     "test:integration": "pnpm --filter @shipboard/api test:integration",
+    "test:containers": "node scripts/test-containers.mjs",
+    "test:e2e": "node --import tsx scripts/run-e2e.mts",
     "build": "pnpm --filter @shipboard/contracts build && pnpm --filter @shipboard/api build && pnpm --filter @shipboard/web build"
   },
   "devDependencies": {
     "@eslint/js": "9.36.0",
+    "@playwright/test": "1.62.0",
+    "@testcontainers/postgresql": "12.1.0",
     "eslint": "9.36.0",
     "globals": "16.4.0",
     "prettier": "3.6.2",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
     "typescript-eslint": "8.44.1"
   }

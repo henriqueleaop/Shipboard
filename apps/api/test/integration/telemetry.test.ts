@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { readConfig } from '../../src/app/config.js';
 import {
+  recordDatabaseCheck,
   recordHttpRequest,
   startTelemetry,
   stopTelemetry,
@@ -33,10 +34,18 @@ describe('API telemetry', () => {
       exporter: metricExporter,
       exportIntervalMillis: 60_000,
     });
-    const config = readConfig({ NODE_ENV: 'test', LOG_LEVEL: 'info' });
+    const config = readConfig({
+      AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
+      NODE_ENV: 'test',
+      LOG_LEVEL: 'info',
+      DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
+    });
     await startTelemetry(config, { traceExporter: spanExporter, metricReader });
     const { buildApp } = await import('../../src/app/build-app.js');
-    const app = await buildApp(config, logStream);
+    const app = await buildApp(config, logStream, {
+      check: async () => undefined,
+      close: async () => undefined,
+    });
 
     const traceId = '0123456789abcdef0123456789abcdef';
     const traceparent = `00-${traceId}-0123456789abcdef-01`;
@@ -47,6 +56,36 @@ describe('API telemetry', () => {
         headers: { traceparent, 'x-request-id': 'telemetry-test-123' },
       });
       expect(response.statusCode).toBe(200);
+      const readiness = await app.inject({
+        method: 'GET',
+        url: '/health/ready',
+        headers: { traceparent, 'x-request-id': 'readiness-trace-123' },
+      });
+      expect(readiness.statusCode).toBe(200);
+      expect(
+        spanExporter
+          .getFinishedSpans()
+          .some(
+            (finished) =>
+              finished.name === 'database.readiness' &&
+              finished.spanContext().traceId === traceId,
+          ),
+      ).toBe(true);
+
+      const failingApp = await buildApp(config, logStream, {
+        check: async () => {
+          throw new Error('secret-database-url-fixture');
+        },
+        close: async () => undefined,
+      });
+      try {
+        const failure = await failingApp.inject('/health/ready');
+        expect(failure.statusCode).toBe(503);
+        expect(failure.body).not.toContain('secret-database-url-fixture');
+      } finally {
+        await failingApp.close();
+      }
+      expect(logs.join('')).not.toContain('secret-database-url-fixture');
       expect(
         logs.some(
           (line) =>
@@ -74,6 +113,7 @@ describe('API telemetry', () => {
       );
 
       recordHttpRequest(500, 7);
+      recordDatabaseCheck(true, 3);
       await metricReader.forceFlush();
       const metricNames = metricExporter
         .getMetrics()
@@ -85,6 +125,7 @@ describe('API telemetry', () => {
           'shipboard.http.requests',
           'shipboard.http.duration_ms',
           'shipboard.http.errors',
+          'shipboard.database.check_duration_ms',
         ]),
       );
 

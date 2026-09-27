@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,109 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm test:unit
-      - run: pnpm build
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @shipboard/contracts build
+      - run: docker info > /dev/null
       - run: pnpm test:integration
+
+  compose:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_DB: shipboard_ci
+      POSTGRES_USER: shipboard_ci
+      POSTGRES_PASSWORD: disposable_ci_fixture
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify PostgreSQL Compose health and volume persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'docker compose -p shipboard-ci down -v' EXIT
+          docker compose config --quiet
+          docker compose -p shipboard-ci up -d --wait postgres
+          docker compose -p shipboard-ci exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c 'CREATE TABLE ci_volume_probe (value integer NOT NULL); INSERT INTO ci_volume_probe VALUES (42);'
+          docker compose -p shipboard-ci up -d --wait --force-recreate postgres
+          actual="$(docker compose -p shipboard-ci exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc 'SELECT value FROM ci_volume_probe')"
+          test "$actual" = 42
+          version="$(docker compose -p shipboard-ci exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atqc 'SHOW server_version')"
+          [[ "$version" == 18.* ]]
+
+  build:
+    needs: [quality, unit, integration, compose]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  containers:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @shipboard/contracts build
+      - run: docker info > /dev/null
+      - run: docker build -f apps/api/Dockerfile -t shipboard-api:sprint-004 .
+      - run: docker build -f apps/web/Dockerfile -t shipboard-web:sprint-004 .
+      - run: pnpm test:containers --api
+      - run: pnpm test:containers --web
+      - run: pnpm test:containers
+
+  e2e:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: docker info > /dev/null
+      - run: pnpm test:e2e

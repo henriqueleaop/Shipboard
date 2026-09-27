@@ -1,0 +1,14 @@
+.git
+.github
+.agents
+.codex
+.vscode
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.example
+docs

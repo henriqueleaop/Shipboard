@@ -8,11 +8,25 @@ export async function main(): Promise<void> {
   let app:
     | Awaited<ReturnType<typeof import('./app/build-app.js').buildApp>>
     | undefined;
+  let database:
+    | ReturnType<
+        typeof import('./infrastructure/database/client.js').createDatabase
+      >
+    | undefined;
   try {
     const config = readConfig();
     await startTelemetry(config);
+    const { createDatabase } = await import(
+      './infrastructure/database/client.js'
+    );
+    database = createDatabase(config.DATABASE_URL, () => {
+      app?.log.warn({
+        event: 'database.idle_connection_failed',
+        errorCode: 'DATABASE_UNAVAILABLE',
+      });
+    });
     const { buildApp } = await import('./app/build-app.js');
-    const createdApp = await buildApp(config);
+    const createdApp = await buildApp(config, undefined, database);
     app = createdApp;
     const shutdown = createShutdownHandler({
       close: () => createdApp.close(),
@@ -35,11 +49,12 @@ export async function main(): Promise<void> {
       host: config.HOST,
       port: config.PORT,
     });
-  } catch (error) {
-    app?.log.error({ event: 'api.start_failed', err: error });
+  } catch {
+    app?.log.error({ event: 'api.start_failed', errorCode: 'STARTUP_FAILED' });
     const cleanup = createShutdownHandler({
       close: async () => {
-        await app?.close();
+        if (app) await app.close();
+        else await database?.close();
       },
       stopTelemetry,
       log: (event, details) => app?.log.info({ event, ...details }),

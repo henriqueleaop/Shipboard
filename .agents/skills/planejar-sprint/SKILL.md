@@ -1,268 +1,65 @@
 ---
 name: planejar-sprint
-description: Plan a Shipboard microsprint from the product backlog without implementing code. Use when asked to plan the next sprint or a specific sprint number.
+description: Plan a substantial Shipboard sprint around a complete product workflow or necessary architectural stage, without implementing code. Use for the next sprint or a specified sprint number.
 ---
 
-# Plan Shipboard Microsprint
+# Plan a Shipboard Sprint
 
-Create a detailed implementation plan for a Shipboard microsprint.
+The number after `$planejar-sprint` identifies the sprint; `3` means Sprint 003. Create `docs/sprints/sprint-NNN.md` with an executable implementation plan. Planning changes no application code.
 
-## Input
+## Establish the baseline
 
-The number following the skill invocation is the sprint number.
+Before choosing scope, read `AGENTS.md`, `docs/architecture/ARCHITECTURE.md`, `docs/product/BACKLOG.md`, `docs/project/STATE.md`, and relevant prior sprint plans. Inspect the current code and the tests, contracts, migrations, Docker/Compose files, CI, and configuration affected by candidate stories. Do not plan from the backlog or the state snapshot alone. Code and normative documents take precedence over `STATE.md`; report material divergence in the plan.
 
-Example:
+Do not modify `STATE.md` during planning, and do not change backlog items unless the user explicitly requests it. A plan is not implementation progress.
 
-`$planejar-sprint 1`
+## Choose a complete outcome
 
-means Sprint 001.
+Make the default sprint boundary a **demonstrable, end-to-end capability**: name the actor, the action they can complete, and the visible result. Select the related backlog stories, contracts, persistence, API, frontend, and validation needed to finish that outcome. A sprint may span adjacent epics when that is the practical way to complete one journey. Several stories are normal; there is no fixed story limit.
 
-## Mandatory reading
+Start with the backlog's recommended sequence, then inspect the neighboring groups and current repository state. Treat the sequence as advice, not a cap on scope. Compare a cohesive larger grouping with a smaller one. Choose the larger grouping when one agent can implement it through validated checkpoints and a reviewer can assess it with clear acceptance criteria. State why the chosen boundary is substantial and why closely related stories are included or excluded.
 
-Before planning:
+Do not optimize for the fewest tickets, files, layers, or implementation steps. Account for the cost of repeating context, contracts, migrations, UI integration, manual walkthroughs, and CI across separate sprints. Keep adjacent work together when splitting it would leave the user midway through an action or defer the visible result of work already being built. Small technical steps belong **inside** the sprint as checkpoints; they are not automatically separate sprints.
 
-1. Read `AGENTS.md`.
-2. Read `docs/architecture/ARCHITECTURE.md`.
-3. Read `docs/product/BACKLOG.md`.
-4. Read `docs/project/STATE.md`.
-5. Read all relevant previous sprint plans under `docs/sprints/`.
-6. Inspect the current repository state and relevant code.
-7. Inspect tests, contracts, migrations, Docker and Compose files, CI configuration, and other configuration relevant to the candidate backlog items.
+Prefer a finished user workflow over infrastructure alone when the existing foundation can support it. A significant architectural stage is appropriate when it is genuinely required before a product workflow, spans the necessary components, and can be validated end to end. Do not create an isolated configuration or schema sprint merely because it is easier to review.
 
-Do not plan from the backlog alone.
+Keep the grouping cohesive and finishable. Split only for a concrete reason such as an unresolved product decision, an external dependency, an architectural constraint, or implementation and validation risk that cannot be managed through checkpoints. Name that reason and the demonstrable outcome the smaller sprint will still deliver. Do not bundle unrelated journeys or speculative infrastructure just to increase size.
 
-Use `STATE.md` as a concise starting snapshot, then verify it against the repository. The current repository state and normative documents are authoritative regarding what has already been implemented. Signal any divergence between `STATE.md` and the code or normative documents in the sprint plan.
+Examples of meaningful boundaries, subject to repository evidence rather than fixed prescriptions:
 
-Do not modify `docs/project/STATE.md` while planning: a plan is not completed progress.
+- A visitor registers, signs in, creates a board, and can return to manage its details.
+- A visitor opens a public board, submits a suggestion, and sees it in the board list and detail view.
+- A user votes and removes a vote, with the current count visible on the public board.
+- An owner reviews suggestions, changes status, and sees the result reflected publicly.
 
-## Objective
+Avoid ending at only a registration form, an API endpoint without its usable flow, one migration, or a board creation response when the closely related UI and follow-up action fit in the same sprint.
 
-Select the smallest coherent set of backlog items that produces a validated increment of the product.
+## Select backlog work responsibly
 
-Prefer one vertical capability per microsprint.
+Prefer `READY` stories. A `BACKLOG` story may be included when its requirements and acceptance criteria are sufficiently defined in authoritative sources. Verify every dependency; if one is needed in the same sprint, include and order it explicitly. Preserve the selected stories' acceptance criteria. Do not silently invent requirements or add future functionality for convenience. Respect the architecture and MVP exclusions.
 
-Do not maximize the amount of work.
+If the recommended sequence no longer fits the repository or a larger workflow is safely deliverable, explain the regrouping. Propose a backlog change for review only when the product requirement itself must change; planning a different implementation grouping does not require rewriting the backlog.
 
-The objective is to make a small change, validate it thoroughly, and leave the repository in a healthy state.
+## Make the larger sprint executable
 
-## Backlog selection
+Plan small ordered checkpoints across the actual boundaries involved: contracts/domain, persistence and backend, frontend, integration, and operational handoff as applicable. For each checkpoint, state its objective, related stories, affected code areas, contract/database/infrastructure impact, tests, immediate validation commands, and observable done condition. Validate after each checkpoint and run the integrated gate at the end. The checkpoints must let `$implementar-sprint` execute the selected outcome without redefining scope.
 
-When selecting items:
+Surface product decisions, architectural decisions, external dependencies, repository conflicts, and technical risks early. If a decision cannot be derived from authoritative sources and blocks the outcome, record it as a blocker; do not choose a product behavior silently.
 
-1. Prefer `READY` items.
-2. Verify that dependencies are already satisfied.
-3. If a dependency must be included in the same sprint, explicitly state it.
-4. Do not silently invent requirements.
-5. Do not include future functionality merely because it would be convenient.
-6. Respect the architecture and MVP scope.
-7. If the recommended sprint sequence in the backlog no longer matches repository reality, explain the deviation.
-8. If a story is too large for a validated microsprint, propose smaller implementation tasks or a backlog split for review; do not silently change the product requirement.
+For each selected story, check whether runtime dependencies, environment variables, application startup, ports, database connectivity, build output, Dockerfiles, or Compose must change. Include relevant image builds and Compose validation. Integration tests must provision their own PostgreSQL rather than depend on the development Compose stack. Do not place secrets in committed configuration.
 
-## Planning rules
+Plan the applicable format, lint, typecheck, unit, PostgreSQL integration, contract, build, container, and critical Playwright E2E gates. Include E2E when the sprint delivers a critical product journey; do not substitute a manual walkthrough for automated evidence. Keep unrelated tests out unless they are repository-wide CI gates. Every sprint must leave a green repository.
 
-The sprint plan must define:
+## Write the plan
 
-- objective;
-- selected backlog items;
-- requirements covered;
-- dependencies;
-- architecture constraints;
-- implementation sequence;
-- expected files or code areas affected;
-- API contracts involved;
-- database changes;
-- backend work;
-- frontend work;
-- tests;
-- observability;
-- security considerations;
-- concurrency/idempotency considerations when applicable;
-- CI impact;
-- validation commands;
-- manual acceptance walkthrough;
-- risks;
-- explicit out-of-scope items;
-- exit criteria.
+Create `docs/sprints/sprint-NNN.md`. Keep it detailed enough to implement and review, but avoid repeating the same work under many headings. Include:
 
-Do not create implementation code.
+1. **Outcome and selection:** objective in actor/action/result terms; selected stories and requirements; dependency status; why this is one substantial, cohesive block; adjacent work considered and the concrete reason for exclusion.
+2. **Baseline and scope:** verified preconditions and any `STATE.md` divergence; in-scope and out-of-scope behavior; architecture constraints; decisions and blockers.
+3. **Implementation checkpoints:** ordered steps with expected changes, tests, immediate validation, and done conditions. Identify expected files or code areas without inventing internal abstractions.
+4. **Cross-cutting impact:** API contracts, backend, frontend, database/migrations, Docker/Compose, security, observability, concurrency/idempotency where relevant, and CI.
+5. **Acceptance:** unit/integration/contract/E2E strategy, exact validation commands, a manual walkthrough that demonstrates the complete outcome, risks and edge cases, exit criteria, and expected repository state.
 
-Do not modify application source files.
+Use headings that make these parts easy to find; adapt subheadings to the actual sprint. The exit criteria must require the full actor-to-result journey and all selected acceptance criteria, not merely completion of individual technical steps.
 
-Do not modify the backlog unless explicitly requested.
-
-## Implementation sequence and checkpoints
-
-The plan must be executable by `$implementar-sprint` without redefining its scope. Divide work into small ordered steps. For every step, state when applicable:
-
-- objective and related backlog item;
-- affected code area, without prescribing internal names that the repository does not yet establish;
-- contract, database, backend, frontend, infrastructure/Docker, and observability impact;
-- tests to add or change;
-- validation that runs immediately after the step;
-- objective condition for the step to be complete.
-
-Each step is a checkpoint: implement, validate, then proceed. Include a final integrated validation after the checkpoints; do not defer all validation until the end.
-
-Identify product decisions, architectural decisions, external dependencies, technical risks, and repository-state conflicts early. If a decision is blocking and cannot be derived from the authoritative sources, record it as a blocker rather than inventing it.
-
-## Vertical slicing
-
-Prefer a complete thin slice over horizontal infrastructure work.
-
-However, foundational sprints may establish infrastructure when it is a prerequisite for every subsequent vertical slice.
-
-Avoid plans such as:
-
-- implement the entire backend;
-- create every database table;
-- configure all future infrastructure;
-- build every shared abstraction.
-
-Prefer plans such as:
-
-- bootstrap a runnable web and API application with validation gates;
-- allow an authenticated owner to create one board;
-- allow an authenticated user to submit one suggestion;
-- allow an owner to change suggestion status safely.
-
-## Containerization
-
-For every selected story, determine whether it affects:
-
-- runtime dependencies;
-- environment variables;
-- application startup;
-- network ports;
-- database connectivity;
-- production build output;
-- Dockerfiles;
-- Compose configuration.
-
-If so, include the required containerization changes in the sprint plan.
-
-When relevant, include validation commands such as:
-
-```bash
-docker compose config
-docker compose up -d postgres
-docker build -f apps/api/Dockerfile .
-docker build -f apps/web/Dockerfile .
-```
-
-Container validation must match the actual scope of the sprint.
-
-## Validation
-
-Every sprint must end with a green repository.
-
-The plan must include the relevant commands for:
-
-- formatting;
-- linting;
-- type checking;
-- unit tests;
-- integration tests;
-- build;
-- E2E tests when applicable.
-
-Do not require tests unrelated to the sprint unless they are part of the repository-wide CI gate.
-
-## Output
-
-Create:
-
-`docs/sprints/sprint-NNN.md`
-
-where `NNN` is the zero-padded sprint number.
-
-Use this structure:
-
-# Sprint NNN — <short name>
-
-## Objective
-
-## Selected backlog items
-
-## Preconditions
-
-## Scope
-
-### In scope
-
-### Out of scope
-
-## Architecture constraints
-
-## Implementation sequence
-
-### Step 1 — <short name>
-
-#### Objective
-
-#### Expected changes
-
-#### Tests
-
-#### Validation
-
-#### Done when
-
-### Step 2 — <short name>
-
-#### Objective
-
-#### Expected changes
-
-#### Tests
-
-#### Validation
-
-#### Done when
-
-## Contracts
-
-## Backend impact
-
-## Frontend impact
-
-## Database impact
-
-## Infrastructure and Docker impact
-
-## Observability
-
-## Security
-
-## Concurrency and idempotency
-
-## Testing strategy
-
-### Unit
-
-### Integration
-
-### Contract
-
-### E2E
-
-## CI impact
-
-## Manual acceptance walkthrough
-
-## Risks and edge cases
-
-## Decisions and blockers
-
-## Exit criteria
-
-## Expected repository state
-
-After creating the sprint document, stop.
-
-Do not begin implementation.
-
-Report:
-
-- which backlog items were selected;
-- why the scope is appropriately small;
-- any unresolved decision that blocks implementation.
+Do not implement code or begin the next sprint. After validating the document, commit and push the scoped change as required by `AGENTS.md`, then stop. Report the selected stories, the complete capability they form, why the scope is safely finishable, and any unresolved blocker.

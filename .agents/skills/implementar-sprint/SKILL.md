@@ -71,3 +71,5 @@ The implementation phase ends as one of:
 Report the executed sprint; completed steps; primary files or areas changed; contract and migration changes; tests and validation gates with their results; deviations from the plan; blockers; and out-of-scope observations.
 
 Do not say that the sprint is closed. If it is `IMPLEMENTED`, the expected next action is `$encerrar-sprint N`.
+
+Commit and push the implementation changes as required by `AGENTS.md` before reporting the outcome. A pushed implementation is not evidence of sprint closure.

@@ -4,8 +4,13 @@ import { createShutdownHandler } from '../../src/app/shutdown.js';
 
 describe('shutdown handler', () => {
   it('cleans up once when shutdown is requested repeatedly', async () => {
-    const close = vi.fn().mockResolvedValue(undefined);
-    const stopTelemetry = vi.fn().mockResolvedValue(undefined);
+    const order: string[] = [];
+    const close = vi.fn(async () => {
+      order.push('close');
+    });
+    const stopTelemetry = vi.fn(async () => {
+      order.push('telemetry');
+    });
     const shutdown = createShutdownHandler({
       close,
       stopTelemetry,
@@ -14,6 +19,7 @@ describe('shutdown handler', () => {
     await Promise.all([shutdown('SIGTERM'), shutdown('SIGTERM')]);
     expect(close).toHaveBeenCalledOnce();
     expect(stopTelemetry).toHaveBeenCalledOnce();
+    expect(order).toEqual(['close', 'telemetry']);
   });
   it('reports cleanup failure', async () => {
     const log = vi.fn();
@@ -25,7 +31,9 @@ describe('shutdown handler', () => {
     });
     await expect(shutdown('SIGINT')).resolves.toBe(false);
     expect(stopTelemetry).toHaveBeenCalledOnce();
-    expect(log).toHaveBeenCalledWith('api.shutdown_failed', expect.any(Object));
+    expect(log).toHaveBeenCalledWith('api.shutdown_failed', {
+      errorCode: 'SHUTDOWN_FAILED',
+    });
   });
 
   it('returns a failure within the deadline when cleanup hangs', async () => {
@@ -44,7 +52,7 @@ describe('shutdown handler', () => {
       expect(close).toHaveBeenCalledOnce();
       expect(stopTelemetry).toHaveBeenCalledOnce();
       expect(log).toHaveBeenCalledWith('api.shutdown_failed', {
-        error: expect.objectContaining({ message: 'Shutdown timed out.' }),
+        errorCode: 'SHUTDOWN_FAILED',
       });
     } finally {
       vi.useRealTimers();

@@ -1480,19 +1480,23 @@ A feature is not complete merely because it works manually.
 
 Development uses microsprints.
 
-A microsprint should normally contain one vertical product capability or a very small set of tightly coupled stories.
+A microsprint delivers the smallest substantial, cohesive increment: a usable vertical product capability or a significant architectural stage. It may group several tightly related stories when together they complete a meaningful flow or prerequisite. Size is judged by capability, dependencies, implementation and review effort, and validation risk, not by a fixed story count. Avoid splitting one workflow into partial actions or tiny infrastructure-only sprints, and avoid bundling unrelated journeys into a large milestone.
 
 Examples:
 
 ```text
 good:
-"authenticated owner can create a board"
+"registration, login, logout, and current-principal resolution work together"
+"owner can create, view, and edit a board"
+"production images and a complete local Compose stack run together"
 
 bad:
 "implement all authentication, boards, suggestions and voting"
 ```
 
 Each microsprint ends with a fully validated repository state.
+
+Within the sprint, implement and validate small ordered checkpoints at the relevant contracts/domain, persistence/backend, frontend, and integration boundaries. Complete the final integrated gates before closing.
 
 Do not begin the next microsprint with failing CI or unresolved architectural violations.
 

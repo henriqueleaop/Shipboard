@@ -17,6 +17,7 @@ import type { AppConfig } from './app/config.js';
 let httpMetrics:
   | { requestCount: Counter; requestDuration: Histogram; errorCount: Counter }
   | undefined;
+let databaseCheckDuration: Histogram | undefined;
 
 let sdk: NodeSDK | undefined;
 
@@ -70,12 +71,25 @@ export async function startTelemetry(
     requestDuration: meter.createHistogram('shipboard.http.duration_ms'),
     errorCount: meter.createCounter('shipboard.http.errors'),
   };
+  databaseCheckDuration = meter.createHistogram(
+    'shipboard.database.check_duration_ms',
+  );
 }
 
 export async function stopTelemetry(): Promise<void> {
   await sdk?.shutdown();
   sdk = undefined;
   httpMetrics = undefined;
+  databaseCheckDuration = undefined;
+}
+
+export function recordDatabaseCheck(
+  available: boolean,
+  durationMs: number,
+): void {
+  databaseCheckDuration?.record(durationMs, {
+    outcome: available ? 'available' : 'unavailable',
+  });
 }
 
 export function recordHttpRequest(
