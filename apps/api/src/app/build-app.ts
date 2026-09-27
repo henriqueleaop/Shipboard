@@ -19,6 +19,12 @@ import Fastify, { type FastifyInstance } from 'fastify';
 
 import type { AppConfig } from './config.js';
 import { createDatabase } from '../infrastructure/database/client.js';
+import { createAuth } from '../infrastructure/auth/create-auth.js';
+import { registerAuthRoutes } from '../infrastructure/auth/auth-routes.js';
+import { BoardError } from '../modules/boards/application/board-error.js';
+import { registerBoardRoutes } from '../modules/boards/http/board-routes.js';
+import { createBoardUnitOfWork } from '../modules/boards/infrastructure/persistence/board-store.drizzle.js';
+import { sendProblem } from '../shared/http/problem.js';
 import { recordDatabaseCheck, recordHttpRequest } from '../telemetry.js';
 
 const requestIdPattern = /^[A-Za-z0-9._-]{8,128}$/;
@@ -29,6 +35,12 @@ export type DatabaseCheck = Pick<
   ReturnType<typeof createDatabase>,
   'check' | 'close'
 >;
+
+function hasDatabaseClient(
+  value: DatabaseCheck | ReturnType<typeof createDatabase>,
+): value is ReturnType<typeof createDatabase> {
+  return 'db' in value;
+}
 
 async function checkWithinDeadline(database: DatabaseCheck): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -111,7 +123,18 @@ export async function buildApp(
   app.addHook('onClose', async () => activeDatabase.close());
 
   await app.register(helmet);
-  await app.register(cors, { origin: config.WEB_ORIGIN, credentials: true });
+  await app.register(cors, {
+    origin: config.WEB_ORIGIN,
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'If-Match',
+      'Idempotency-Key',
+      'X-Request-Id',
+    ],
+    exposedHeaders: ['ETag', 'Location', 'Retry-After', 'X-Request-Id'],
+  });
   await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
 
   app.addHook('onRequest', async (request) => {
@@ -208,6 +231,17 @@ export async function buildApp(
     },
   );
 
+  if (hasDatabaseClient(activeDatabase)) {
+    const auth = createAuth(config, activeDatabase.db);
+    const { principal } = registerAuthRoutes(app, auth, config);
+    registerBoardRoutes(
+      app,
+      createBoardUnitOfWork(activeDatabase),
+      principal,
+      config,
+    );
+  }
+
   app.setNotFoundHandler((request, reply) => {
     return reply
       .type('application/problem+json')
@@ -217,6 +251,34 @@ export async function buildApp(
       );
   });
   app.setErrorHandler((error, request, reply) => {
+    if (error instanceof BoardError) {
+      const status = {
+        BOARD_NOT_FOUND: 404,
+        BOARD_FORBIDDEN: 403,
+        BOARD_STALE: 412,
+        SLUG_CONFLICT: 409,
+        IDEMPOTENCY_KEY_REUSED: 409,
+        IDEMPOTENCY_IN_PROGRESS: 409,
+      }[error.code];
+      if (error.code === 'IDEMPOTENCY_IN_PROGRESS') {
+        reply.header('retry-after', '1');
+      }
+      request.log.info({
+        event: 'board.operation_rejected',
+        errorCode: error.code,
+        requestId: request.id,
+      });
+      return sendProblem(
+        request,
+        reply,
+        status,
+        error.code,
+        'Board operation failed',
+        error.code === 'BOARD_STALE'
+          ? 'The board changed. Reload it before editing again.'
+          : 'The requested board operation could not be completed.',
+      );
+    }
     request.log.error({
       event: 'http.unexpected_error',
       requestId: request.id,

@@ -108,8 +108,26 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @shipboard/contracts build
       - run: docker info > /dev/null
-      - run: docker build -f apps/api/Dockerfile -t shipboard-api:sprint-003 .
-      - run: docker build -f apps/web/Dockerfile -t shipboard-web:sprint-003 .
+      - run: docker build -f apps/api/Dockerfile -t shipboard-api:sprint-004 .
+      - run: docker build -f apps/web/Dockerfile -t shipboard-web:sprint-004 .
       - run: pnpm test:containers --api
       - run: pnpm test:containers --web
       - run: pnpm test:containers
+
+  e2e:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.3.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.16.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: docker info > /dev/null
+      - run: pnpm test:e2e

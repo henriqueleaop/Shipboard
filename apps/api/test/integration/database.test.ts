@@ -54,6 +54,7 @@ describe('PostgreSQL 18 and migrations', () => {
       let activeDatabase = database;
       const app = await buildApp(
         readConfig({
+          AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
           NODE_ENV: 'test',
           LOG_LEVEL: 'silent',
           DATABASE_URL: container.getConnectionUri(),
@@ -111,7 +112,7 @@ describe('PostgreSQL 18 and migrations', () => {
       const migrations = await database.db.execute(sql`
         SELECT count(*)::integer AS count FROM drizzle.__drizzle_migrations
       `);
-      expect(migrations.rows[0]?.['count']).toBe(1);
+      expect(migrations.rows[0]?.['count']).toBe(3);
     } finally {
       await database.close();
       await container.stop();

@@ -1,7 +1,7 @@
 services:
   api:
     profiles: [full]
-    image: shipboard-api:sprint-003
+    image: shipboard-api:sprint-004
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -12,6 +12,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
       DATABASE_URL: ${COMPOSE_DATABASE_URL:-}
+      AUTH_SECRET: ${AUTH_SECRET:-}
+      AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:3001}
+      AUTH_ALLOW_INSECURE_LOCAL: ${AUTH_ALLOW_INSECURE_LOCAL:-true}
     ports:
       - '127.0.0.1:${API_PORT:-3001}:3001'
     depends_on:
@@ -34,7 +37,7 @@ services:
 
   web:
     profiles: [full]
-    image: shipboard-web:sprint-003
+    image: shipboard-web:sprint-004
     build:
       context: .
       dockerfile: apps/web/Dockerfile
@@ -43,6 +46,7 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3001}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:3001}
     ports:
       - '127.0.0.1:${WEB_PORT:-3000}:3000'
 

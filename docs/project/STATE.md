@@ -4,11 +4,11 @@
 
 ## Active Sprint
 
-No active sprint. Sprints 001–003 are closed; US-025–US-027 are `DONE` on `sprint/003-production-containers`.
+Sprint 004 implementation is on `sprint/004-account-boards`; it is not closed. Sprints 001–003 are closed. Backlog statuses have not been changed by implementation.
 
 ## Current Stage
 
-Runnable monorepo with PostgreSQL infrastructure, database readiness, production application images, and an optional complete local Compose stack. No product journey is implemented yet.
+Runnable monorepo with a verified account-to-owned-board workflow, PostgreSQL persistence, production application images, and an optional complete local Compose stack.
 
 ## Implemented
 
@@ -22,6 +22,9 @@ Runnable monorepo with PostgreSQL infrastructure, database readiness, production
 - CI workflow configured with parallel quality, unit, integration, and Compose gates followed by a build gate.
 - Multi-stage, non-root API and standalone web images with pinned Node base digest and production runtime artifacts.
 - Optional Compose `full` profile, internal web-to-API probe, explicit image migration command, and isolated container smoke runner. CI configuration includes image builds and runtime smoke.
+- Better Auth email/password registration, login, logout, PostgreSQL sessions, and a principal adapter with safe public contracts.
+- Owned-board creation, cursor list, detail and metadata editing with versioned writes, global slug uniqueness, soft-delete filtering, and transactional creation idempotency.
+- Credentialed Next.js account/board pages and a runtime browser API URL. Playwright exercises the real workflow through isolated PostgreSQL and HTTPS with secure cookies.
 
 ## Infrastructure
 
@@ -29,20 +32,20 @@ The web shell remains independent. The API requires a valid `DATABASE_URL` at st
 
 ## Product Capabilities
 
-None beyond the static web shell and API health probes.
+An account can register, create boards, return after login, edit name/description/slug, and sign out. Owner authorization, stale-write protection, and retry-safe creation are enforced by the API. Public feedback and voting are not implemented.
 
 ## Database
 
-PostgreSQL 18 connectivity and a table-free Drizzle baseline migration exist. No product tables or persistent domain entities exist. Migrations run explicitly, not on API startup.
+PostgreSQL 18 has the baseline plus versioned auth and board/idempotency migrations. `Board` is the first persistent domain entity and follows the `BaseEntity` convention. Migrations run explicitly, not on API startup.
 
 ## Validation Status
 
-Sprint 003 local frozen install, formatting, lint, typecheck, unit tests, production builds, and API/PostgreSQL integration tests passed during implementation. Both application images built without cache; isolated API, web, and full Compose smoke passed, covering non-root runtime, health, web-to-API connectivity, explicit migration replay, outage/recovery, data persistence, and container SIGTERM. Native standalone web startup passed. [Sprint 003 Linux CI run 36280286106](https://github.com/henriqueleaop/Shipboard/actions/runs/36280286106) passed quality, unit, integration, build, PostgreSQL Compose, and both image/full-stack container jobs.
+Sprint 004 local frozen install, formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, image smokes, and full Compose smoke passed during implementation. Linux CI on this branch is pending. [Sprint 003 Linux CI run 36280286106](https://github.com/henriqueleaop/Shipboard/actions/runs/36280286106) passed its previous gates.
 
 ## Known Issues / Technical Debt
 
-Authentication, domain persistence, and product journeys remain future backlog scope.
+Public feedback and voting remain future backlog scope. Sprint 004 acceptance and formal backlog closure remain for `$encerrar-sprint 4`.
 
 ## Important Decisions
 
-Sprint 003 follows `docs/sprints/sprint-003.md` and is closed after local and Linux CI validation. The architecture's `BaseEntity` and soft-delete policy applies when a concrete persistent domain entity is introduced; none exists yet. Normative decisions remain in the architecture and backlog.
+Sprint 004 follows `docs/sprints/sprint-004.md`, including editable slugs without old-slug redirects. The architecture's `BaseEntity` and soft-delete policy applies to `Board`. Normative decisions remain in the architecture and backlog.

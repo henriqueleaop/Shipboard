@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
+  boardResponseSchema,
+  currentUserSchema,
   liveHealthResponseSchema,
   readyHealthResponseSchema,
   unavailableHealthResponseSchema,
@@ -21,6 +23,7 @@ const dbName = `${network}-postgres`;
 const apiName = `${network}-api`;
 const webName = `${network}-web`;
 const password = `fixture-${randomUUID()}`;
+const authSecret = `fixture-${randomUUID()}-${randomUUID()}`;
 const databaseUrl = `postgresql://smoke:${password}@${dbName}:5432/smoke`;
 const project = `shipboard-smoke-${suffix}`;
 const dockerEnv = { ...process.env };
@@ -35,6 +38,10 @@ for (const key of [
   'API_PORT',
   'WEB_ORIGIN',
   'API_INTERNAL_URL',
+  'API_PUBLIC_URL',
+  'AUTH_SECRET',
+  'AUTH_BASE_URL',
+  'AUTH_ALLOW_INSECURE_LOCAL',
   'LOG_LEVEL',
 ])
   delete dockerEnv[key];
@@ -86,8 +93,8 @@ async function until(check, description, timeout = 35_000) {
   throw new Error(`Timed out waiting for ${description}.`);
 }
 
-const requestScript = `const r=await fetch(process.argv[1],{signal:AbortSignal.timeout(2500)});console.log(JSON.stringify({status:r.status,headers:Object.fromEntries(r.headers),body:await r.text()}))`;
-async function request(container, url) {
+const requestScript = `const options=JSON.parse(process.argv[2]);const r=await fetch(process.argv[1],{...options,signal:AbortSignal.timeout(5000)});console.log(JSON.stringify({status:r.status,headers:Object.fromEntries(r.headers),body:await r.text()}))`;
+async function request(container, url, options = {}) {
   const result = await run(
     [
       'exec',
@@ -97,6 +104,7 @@ async function request(container, url) {
       '-e',
       requestScript,
       url,
+      JSON.stringify(options),
     ],
     { timeout: 8_000 },
   );
@@ -114,13 +122,76 @@ function checkHealth(response, expected) {
   assert(response.headers['x-request-id'], 'Missing request ID.');
 }
 
+async function verifyBoardJourney(container) {
+  const base = 'http://127.0.0.1:3001';
+  const suffix = randomUUID().slice(0, 8);
+  const origin = 'http://localhost:3000';
+  const signedUp = await request(container, `${base}/api/auth/sign-up/email`, {
+    method: 'POST',
+    headers: { origin, 'content-type': 'application/json' },
+    body: JSON.stringify({
+      email: `container-${suffix}@example.test`,
+      password: 'fixture-password',
+    }),
+  });
+  assert(signedUp.status === 200, 'Image registration failed.');
+  currentUserSchema.parse(JSON.parse(signedUp.body));
+  assert(
+    !signedUp.body.includes('fixture-password'),
+    'Password leaked in registration.',
+  );
+  const cookie = signedUp.headers['set-cookie']?.split(';')[0];
+  assert(cookie, 'Image registration did not establish a session.');
+  const key = randomUUID();
+  const payload = JSON.stringify({
+    name: 'Container board',
+    slug: `container-${suffix}`,
+    description: '',
+  });
+  const created = await request(container, `${base}/api/v1/boards`, {
+    method: 'POST',
+    headers: {
+      origin,
+      cookie,
+      'content-type': 'application/json',
+      'idempotency-key': key,
+    },
+    body: payload,
+  });
+  assert(created.status === 201, 'Image board creation failed.');
+  const board = boardResponseSchema.parse(JSON.parse(created.body));
+  const changed = await request(
+    container,
+    `${base}/api/v1/boards/${board.id}`,
+    {
+      method: 'PATCH',
+      headers: {
+        origin,
+        cookie,
+        'content-type': 'application/json',
+        'if-match': created.headers.etag,
+      },
+      body: JSON.stringify({
+        name: 'Container board edited',
+        slug: `edited-${suffix}`,
+      }),
+    },
+  );
+  assert(changed.status === 200, 'Image board edit failed.');
+  assert(
+    boardResponseSchema.parse(JSON.parse(changed.body)).slug ===
+      `edited-${suffix}`,
+    'Edited board was not returned.',
+  );
+}
+
 async function verifyApi() {
   const contents = await run([
     'run',
     '--rm',
     '--entrypoint',
     'node',
-    'shipboard-api:sprint-003',
+    'shipboard-api:sprint-004',
     '--input-type=module',
     '-e',
     `import fs from 'node:fs';import('@shipboard/contracts').then(()=>{if(process.getuid()===0||['tsx','vitest','drizzle-kit'].some(x=>fs.existsSync('/app/node_modules/.bin/'+x)))process.exit(1);console.log(process.getuid())})`,
@@ -130,7 +201,7 @@ async function verifyApi() {
     'API image must run as non-root with built contracts.',
   );
 
-  const missing = await run(['run', '--rm', 'shipboard-api:sprint-003'], {
+  const missing = await run(['run', '--rm', 'shipboard-api:sprint-004'], {
     allowFailure: true,
     timeout: 15_000,
   });
@@ -178,7 +249,11 @@ async function verifyApi() {
     `DATABASE_URL=${databaseUrl}`,
     '-e',
     'WEB_ORIGIN=http://localhost:3000',
-    'shipboard-api:sprint-003',
+    '-e',
+    `AUTH_SECRET=${authSecret}`,
+    '-e',
+    'AUTH_ALLOW_INSECURE_LOCAL=true',
+    'shipboard-api:sprint-004',
   ]);
   await until(async () => {
     const response = await request(
@@ -215,7 +290,7 @@ async function verifyApi() {
       network,
       '-e',
       `DATABASE_URL=${databaseUrl}`,
-      'shipboard-api:sprint-003',
+      'shipboard-api:sprint-004',
       'node',
       'dist/infrastructure/database/migrate.js',
     ]);
@@ -232,9 +307,10 @@ async function verifyApi() {
     'SELECT count(*) FROM drizzle.__drizzle_migrations',
   ]);
   assert(
-    journalAfter.stdout === '1',
-    'Baseline migration was not applied exactly once.',
+    journalAfter.stdout === '3',
+    'Image migrations were not applied exactly once.',
   );
+  await verifyBoardJourney(apiName);
 
   await run(['stop', '--time', '10', apiName]);
   const state = await run([
@@ -262,7 +338,7 @@ async function verifyWeb() {
     '--rm',
     '--entrypoint',
     'node',
-    'shipboard-web:sprint-003',
+    'shipboard-web:sprint-004',
     '-e',
     "const fs=require('node:fs');if(process.getuid()===0||fs.existsSync('/app/node_modules/.bin/next')||fs.existsSync('/app/node_modules/.bin/tsc'))process.exit(1);console.log(process.getuid())",
   ]);
@@ -277,7 +353,7 @@ async function verifyWeb() {
     webName,
     '-e',
     'PORT=3999',
-    'shipboard-web:sprint-003',
+    'shipboard-web:sprint-004',
   ]);
   await until(
     async () =>
@@ -286,8 +362,7 @@ async function verifyWeb() {
   );
   const page = await request(webName, 'http://127.0.0.1:3999/');
   assert(
-    page.body.includes('Shipboard') &&
-      page.body.includes('Product feedback boards are being prepared.'),
+    page.body.includes('Shipboard') && page.body.includes('Create an account'),
     'Web production page did not render.',
   );
   const asset = page.body.match(/\/_next\/static\/[^" ]+\.css/);
@@ -332,7 +407,11 @@ function fixtureValues(apiUrl = 'http://api:3001') {
       'WEB_PORT=0',
       `COMPOSE_DATABASE_URL=postgresql://smoke:${password}@postgres:5432/smoke`,
       `API_INTERNAL_URL=${apiUrl}`,
+      'API_PUBLIC_URL=http://localhost:3001',
       'WEB_ORIGIN=http://localhost:3000',
+      `AUTH_SECRET=${authSecret}`,
+      'AUTH_BASE_URL=http://localhost:3001',
+      'AUTH_ALLOW_INSECURE_LOCAL=true',
     ].join('\n') + '\n'
   );
 }
@@ -487,9 +566,10 @@ async function verifyFull() {
     'SELECT count(*) FROM drizzle.__drizzle_migrations',
   ]);
   assert(
-    journalAfter.stdout === '1',
-    'Compose migration was not applied exactly once.',
+    journalAfter.stdout === '3',
+    'Compose migrations were not applied exactly once.',
   );
+  await verifyBoardJourney(api);
 
   await writeFile(fixtureFile, fixtureValues('http://api-alt:3001'), {
     mode: 0o600,

@@ -27,6 +27,7 @@ function startApi(
       HOST: '127.0.0.1',
       PORT: String(port),
       DATABASE_URL: databaseUrl ?? undefined,
+      AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
       LOG_LEVEL: 'info',
       OTEL_EXPORTER_OTLP_ENDPOINT: undefined,
     },

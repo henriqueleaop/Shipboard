@@ -11,6 +11,7 @@ describe('GET /health/live', () => {
   it('returns the shared liveness contract and a request id', async () => {
     const app = await buildApp(
       readConfig({
+        AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
         NODE_ENV: 'test',
         LOG_LEVEL: 'silent',
         DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
@@ -31,6 +32,7 @@ describe('GET /health/live', () => {
   it('returns a safe RFC 9457 response for unknown routes', async () => {
     const app = await buildApp(
       readConfig({
+        AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
         NODE_ENV: 'test',
         LOG_LEVEL: 'silent',
         DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
@@ -47,6 +49,7 @@ describe('GET /health/live', () => {
   it('replaces invalid request ids and keeps unexpected errors private', async () => {
     const app = await buildApp(
       readConfig({
+        AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
         NODE_ENV: 'test',
         LOG_LEVEL: 'silent',
         DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
@@ -76,6 +79,7 @@ describe('GET /health/live', () => {
 
 describe('GET /health/ready', () => {
   const config = readConfig({
+    AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
     NODE_ENV: 'test',
     LOG_LEVEL: 'silent',
     DATABASE_URL: 'postgresql://test:private-password@127.0.0.1:1/test',

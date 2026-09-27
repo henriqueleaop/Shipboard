@@ -35,6 +35,7 @@ describe('API telemetry', () => {
       exportIntervalMillis: 60_000,
     });
     const config = readConfig({
+      AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
       NODE_ENV: 'test',
       LOG_LEVEL: 'info',
       DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',

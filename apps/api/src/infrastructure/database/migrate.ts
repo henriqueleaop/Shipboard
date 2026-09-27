@@ -2,7 +2,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 
-import { readConfig } from '../../app/config.js';
+import { readMigrationConfig } from '../../app/config.js';
 import { createDatabase } from './client.js';
 
 function logMigration(event: string, errorCode?: string): void {
@@ -18,7 +18,7 @@ function logMigration(event: string, errorCode?: string): void {
 }
 
 export async function runMigrations(): Promise<void> {
-  const config = readConfig();
+  const config = readMigrationConfig();
   const database = createDatabase(config.DATABASE_URL);
   logMigration('database.migration_started');
   try {

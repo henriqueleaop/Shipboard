@@ -6,7 +6,12 @@ describe('readConfig', () => {
   const databaseUrl = 'postgresql://example:secret@127.0.0.1:5432/shipboard';
 
   it('uses safe local defaults', () => {
-    expect(readConfig({ DATABASE_URL: databaseUrl })).toMatchObject({
+    expect(
+      readConfig({
+        DATABASE_URL: databaseUrl,
+        AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
+      }),
+    ).toMatchObject({
       HOST: '127.0.0.1',
       PORT: 3001,
       NODE_ENV: 'development',
@@ -21,6 +26,8 @@ describe('readConfig', () => {
         WEB_ORIGIN: 'https://shipboard.example',
         OTEL_EXPORTER_OTLP_ENDPOINT: 'https://telemetry.example',
         DATABASE_URL: databaseUrl,
+        AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
+        AUTH_BASE_URL: 'https://api.shipboard.example',
       }),
     ).toMatchObject({ NODE_ENV: 'production', HOST: '0.0.0.0', PORT: 8080 });
   });
@@ -34,5 +41,17 @@ describe('readConfig', () => {
     expect(() => readConfig({ DATABASE_URL: 'https://example.com' })).toThrow(
       'Environment configuration is invalid.',
     );
+  });
+  it('rejects weak secrets and insecure production origins', () => {
+    expect(() =>
+      readConfig({ DATABASE_URL: databaseUrl, AUTH_SECRET: 'weak' }),
+    ).toThrow('Environment configuration is invalid.');
+    expect(() =>
+      readConfig({
+        NODE_ENV: 'production',
+        DATABASE_URL: databaseUrl,
+        AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
+      }),
+    ).toThrow('Environment configuration is invalid.');
   });
 });
