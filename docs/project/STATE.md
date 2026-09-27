@@ -40,7 +40,7 @@ PostgreSQL 18 has the baseline plus versioned auth and board/idempotency migrati
 
 ## Validation Status
 
-Sprint 004 local frozen install, formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, image smokes, and full Compose smoke passed during implementation. Linux CI on this branch is pending. [Sprint 003 Linux CI run 36280286106](https://github.com/henriqueleaop/Shipboard/actions/runs/36280286106) passed its previous gates.
+Sprint 004 local frozen install, formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, image smokes, and full Compose smoke passed during implementation. [Sprint 004 Linux CI run 36285778892](https://github.com/henriqueleaop/Shipboard/actions/runs/36285778892) passed quality, unit, integration, Compose, build, E2E, and container jobs on implementation commit `2c2534d`. Formal sprint closure remains separate.
 
 ## Known Issues / Technical Debt
 
