@@ -69,9 +69,18 @@ test('owner registers, creates, edits, returns and handles a stale edit', async 
 
   await page.getByRole('button', { name: 'Sign out' }).click();
   await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel('Email').fill(`other-${suffix}@example.test`);
+  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password').press('Enter');
+  await expect(page.getByRole('heading', { name: 'My boards' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Current roadmap/ })).toHaveCount(
+    0,
+  );
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await expect(page).toHaveURL(/\/login$/);
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByLabel('Password').press('Enter');
   await expect(page.getByRole('heading', { name: 'My boards' })).toBeVisible();
   await page.getByRole('link', { name: /Current roadmap/ }).click();
   await expect(page.getByLabel('Public slug')).toHaveValue(`roadmap-${suffix}`);

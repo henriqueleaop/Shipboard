@@ -396,7 +396,10 @@ async function composeId(service) {
   return (await compose(['ps', '-q', service])).stdout;
 }
 
-function fixtureValues(apiUrl = 'http://api:3001') {
+function fixtureValues(
+  apiUrl = 'http://api:3001',
+  publicUrl = 'http://localhost:3001',
+) {
   return (
     [
       'POSTGRES_DB=smoke',
@@ -407,7 +410,7 @@ function fixtureValues(apiUrl = 'http://api:3001') {
       'WEB_PORT=0',
       `COMPOSE_DATABASE_URL=postgresql://smoke:${password}@postgres:5432/smoke`,
       `API_INTERNAL_URL=${apiUrl}`,
-      'API_PUBLIC_URL=http://localhost:3001',
+      `API_PUBLIC_URL=${publicUrl}`,
       'WEB_ORIGIN=http://localhost:3000',
       `AUTH_SECRET=${authSecret}`,
       'AUTH_BASE_URL=http://localhost:3001',
@@ -571,9 +574,13 @@ async function verifyFull() {
   );
   await verifyBoardJourney(api);
 
-  await writeFile(fixtureFile, fixtureValues('http://api-alt:3001'), {
-    mode: 0o600,
-  });
+  await writeFile(
+    fixtureFile,
+    fixtureValues('http://api-alt:3001', 'http://localhost:3997'),
+    {
+      mode: 0o600,
+    },
+  );
   const oldWebImage = (await run(['inspect', '-f', '{{.Image}}', web])).stdout;
   await compose(
     ['up', '-d', '--wait', '--no-build', '--force-recreate', 'web'],
@@ -587,6 +594,11 @@ async function verifyFull() {
     'Web image changed during runtime URL override.',
   );
   await compose(['exec', '-T', 'web', 'node', 'scripts/probe-api.mjs']);
+  const overriddenPage = await request(web, 'http://127.0.0.1:3000/');
+  assert(
+    overriddenPage.body.includes('http://localhost:3997'),
+    'Web runtime browser API URL did not change with the same image.',
+  );
 
   api = await composeId('api');
   await compose(['stop', 'api']);

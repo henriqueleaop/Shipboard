@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { currentUserSchema, problemSchema } from '@shipboard/contracts';
+import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { describe, expect, it } from 'vitest';
 
@@ -57,6 +58,50 @@ describe('PostgreSQL-backed authentication', () => {
         });
         expect(me.statusCode, me.body).toBe(200);
         expect(currentUserSchema.parse(me.json())).toMatchObject({ email });
+        const secondDatabase = createDatabase(container.getConnectionUri());
+        const secondApp = await buildApp(
+          readConfig({
+            NODE_ENV: 'test',
+            LOG_LEVEL: 'silent',
+            DATABASE_URL: container.getConnectionUri(),
+            AUTH_SECRET: 'integration-secret-at-least-thirty-two-characters',
+            AUTH_BASE_URL: 'http://localhost:3001',
+            WEB_ORIGIN: 'http://localhost:3000',
+          }),
+          undefined,
+          secondDatabase,
+        );
+        try {
+          const crossInstance = await secondApp.inject({
+            method: 'GET',
+            url: '/api/v1/me',
+            headers: { cookie },
+          });
+          expect(crossInstance.statusCode).toBe(200);
+          expect(currentUserSchema.parse(crossInstance.json()).email).toBe(
+            email,
+          );
+        } finally {
+          await secondApp.close();
+        }
+
+        const race = await Promise.all([
+          app.inject({
+            method: 'POST',
+            url: '/api/auth/sign-up/email',
+            headers: { origin: 'http://localhost:3000' },
+            payload: { email: 'race@example.com', password },
+          }),
+          app.inject({
+            method: 'POST',
+            url: '/api/auth/sign-up/email',
+            headers: { origin: 'http://localhost:3000' },
+            payload: { email: 'race@example.com', password },
+          }),
+        ]);
+        expect(race.map((response) => response.statusCode).sort()).toEqual([
+          200, 409,
+        ]);
 
         const duplicate = await app.inject({
           method: 'POST',
@@ -106,6 +151,15 @@ describe('PostgreSQL-backed authentication', () => {
         expect(wrongPassword.statusCode).toBe(401);
         expect(unknownEmail.statusCode).toBe(401);
         expect(wrongPassword.json().detail).toBe(unknownEmail.json().detail);
+        await database.db.execute(
+          sql`UPDATE session SET expires_at = now() - interval '1 second'`,
+        );
+        const expired = await app.inject({
+          method: 'GET',
+          url: '/api/v1/me',
+          headers: { cookie: cookieHeader(signedIn.headers['set-cookie']) },
+        });
+        expect(expired.statusCode).toBe(401);
       } finally {
         await app.close();
       }
