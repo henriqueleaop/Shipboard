@@ -314,7 +314,7 @@ The application must be able to retrieve the currently authenticated actor.
 **As a visitor, I want to create an account so that I can participate in feedback boards.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Acceptance criteria:
 
@@ -331,7 +331,7 @@ Acceptance criteria:
 **As a registered user, I want to log in so that I can perform authenticated actions.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -351,7 +351,7 @@ Acceptance criteria:
 **As an authenticated user, I want to log out so that my active session is terminated.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -364,7 +364,7 @@ Depends on:
 **As the application, I need authenticated requests converted into a Shipboard Principal so that business code does not depend on Better Auth objects.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -432,7 +432,7 @@ Only the board owner may modify administrative board settings.
 **As an authenticated user, I want to create a feedback board so that I can collect product feedback.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -456,7 +456,7 @@ Acceptance criteria:
 **As a board owner, I want to open my board dashboard so that I can manage product feedback.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -469,7 +469,7 @@ Depends on:
 **As a board owner, I want to edit board metadata so that the public board remains accurate.**
 
 Priority: `P1`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 

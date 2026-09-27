@@ -4,7 +4,7 @@
 
 ## Active Sprint
 
-Sprint 004 implementation is on `sprint/004-account-boards`; it is not closed. Sprints 001–003 are closed. Backlog statuses have not been changed by implementation.
+No active sprint. Sprints 001–004 are closed; US-004–US-010 are `DONE` on `sprint/004-account-boards`.
 
 ## Current Stage
 
@@ -40,12 +40,12 @@ PostgreSQL 18 has the baseline plus versioned auth and board/idempotency migrati
 
 ## Validation Status
 
-Sprint 004 local frozen install, formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, image smokes, and full Compose smoke passed during implementation. [Sprint 004 Linux CI run 36285778892](https://github.com/henriqueleaop/Shipboard/actions/runs/36285778892) passed quality, unit, integration, Compose, build, E2E, and container jobs on implementation commit `2c2534d`. Formal sprint closure remains separate.
+Sprint 004 closure reran frozen install, formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, image smokes, and full Compose smoke successfully. [Sprint 004 Linux CI run 36286450729](https://github.com/henriqueleaop/Shipboard/actions/runs/36286450729) passed quality, unit, integration, Compose, build, E2E, and container jobs on implementation commit `337d354`.
 
 ## Known Issues / Technical Debt
 
-Public feedback and voting remain future backlog scope. Sprint 004 acceptance and formal backlog closure remain for `$encerrar-sprint 4`.
+Public feedback and voting remain future backlog scope.
 
 ## Important Decisions
 
-Sprint 004 follows `docs/sprints/sprint-004.md`, including editable slugs without old-slug redirects. The architecture's `BaseEntity` and soft-delete policy applies to `Board`. Normative decisions remain in the architecture and backlog.
+Sprint 004 is closed and follows `docs/sprints/sprint-004.md`, including editable slugs without old-slug redirects. The architecture's `BaseEntity` and soft-delete policy applies to `Board`. Normative decisions remain in the architecture and backlog.
