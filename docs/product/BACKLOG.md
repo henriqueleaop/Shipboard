@@ -210,7 +210,7 @@ Acceptance criteria:
 **As a developer, I want a production-ready API image so that the backend can be deployed consistently.**
 
 Priority: `P0`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -232,7 +232,7 @@ Acceptance criteria:
 **As a developer, I want a production-ready frontend image so that the web application can run independently of Vercel when needed.**
 
 Priority: `P1`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -253,7 +253,7 @@ Acceptance criteria:
 **As a developer, I want the web application, API, and PostgreSQL to run through Docker Compose so that the full system can be exercised locally.**
 
 Priority: `P1`  
-Status: `BACKLOG`
+Status: `DONE`
 
 Depends on:
 
@@ -1162,7 +1162,7 @@ Sprint 002
 PostgreSQL via Compose, Drizzle, migrations, and readiness (US-003, US-024) — closed
 
 Sprint 003
-Production API and web images plus complete local Compose stack (US-025, US-026, US-027)
+Production API and web images plus complete local Compose stack (US-025, US-026, US-027) — closed
 
 Sprint 004
 Registration, login, logout, and current principal (US-004–US-007)
