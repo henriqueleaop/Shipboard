@@ -4,7 +4,7 @@
 
 ## Active Sprint
 
-Sprint 003 implementation is on `sprint/003-production-containers`; local gates pass, remote CI is pending. Sprint 002 and Sprint 001 are closed. US-025–US-027 remain `BACKLOG` pending formal closure.
+No active sprint. Sprints 001–003 are closed; US-025–US-027 are `DONE` on `sprint/003-production-containers`.
 
 ## Current Stage
 
@@ -37,12 +37,12 @@ PostgreSQL 18 connectivity and a table-free Drizzle baseline migration exist. No
 
 ## Validation Status
 
-Sprint 003 local frozen install, formatting, lint, typecheck, unit tests, production builds, and API/PostgreSQL integration tests passed. Both application images built without cache; isolated API, web, and full Compose smoke passed, covering non-root runtime, health, web-to-API connectivity, explicit migration replay, outage/recovery, data persistence, and container SIGTERM. Native standalone web startup passed. Linux CI for Sprint 003 has not run; the workflow triggers on PR or `main`. [Sprint 002 Linux CI run 36271981493](https://github.com/henriqueleaop/Shipboard/actions/runs/36271981493) remains prior-sprint evidence only.
+Sprint 003 local frozen install, formatting, lint, typecheck, unit tests, production builds, and API/PostgreSQL integration tests passed during implementation. Both application images built without cache; isolated API, web, and full Compose smoke passed, covering non-root runtime, health, web-to-API connectivity, explicit migration replay, outage/recovery, data persistence, and container SIGTERM. Native standalone web startup passed. [Sprint 003 Linux CI run 36280286106](https://github.com/henriqueleaop/Shipboard/actions/runs/36280286106) passed quality, unit, integration, build, PostgreSQL Compose, and both image/full-stack container jobs.
 
 ## Known Issues / Technical Debt
 
-Sprint 003 remote CI evidence is pending. Authentication, domain persistence, and product journeys remain future backlog scope.
+Authentication, domain persistence, and product journeys remain future backlog scope.
 
 ## Important Decisions
 
-Sprint 003 implementation follows `docs/sprints/sprint-003.md`; its backlog items are not yet accepted or closed. The architecture's `BaseEntity` and soft-delete policy applies when a concrete persistent domain entity is introduced; none exists yet. Normative decisions remain in the architecture and backlog.
+Sprint 003 follows `docs/sprints/sprint-003.md` and is closed after local and Linux CI validation. The architecture's `BaseEntity` and soft-delete policy applies when a concrete persistent domain entity is introduced; none exists yet. Normative decisions remain in the architecture and backlog.
