@@ -309,6 +309,16 @@ The application must be able to retrieve the currently authenticated actor.
 
 ---
 
+### RF-044 — GitHub authentication
+
+A visitor may create an account or sign in through GitHub using Better Auth. A
+GitHub identity receives the same persisted Shipboard session and Principal
+permissions as an email/password identity. Provider credentials remain on the
+API at runtime. A matching email must not silently link a GitHub identity to an
+existing password account.
+
+---
+
 ### US-004 — Register account
 
 **As a visitor, I want to create an account so that I can participate in feedback boards.**
@@ -369,6 +379,32 @@ Status: `DONE`
 Depends on:
 
 - US-005
+
+---
+
+### US-028 — Sign in with GitHub
+
+**As a visitor, I want to sign in with GitHub so that I can participate in feedback boards using that identity.**
+
+Priority: `P1`; Status: `READY`
+
+Depends on:
+
+- US-005
+- US-007
+
+Acceptance criteria:
+
+- first and repeat GitHub login establish the same persisted Shipboard identity and session;
+- authenticated GitHub users have the same Principal permissions as email/password users;
+- logout revokes the active session;
+- the browser returns only to a validated internal destination;
+- a verified private GitHub email can be used for registration;
+- cancellation and provider errors are recoverable and do not establish a session;
+- invalid or replayed callbacks do not establish a session;
+- credentials, authorization codes and tokens are absent from public data and logs;
+- email/password login remains usable and an identical email does not silently merge accounts;
+- unavailable provider configuration is represented truthfully in the interface.
 
 ---
 
@@ -1108,7 +1144,7 @@ The following capabilities are intentionally excluded from the MVP:
 - moderation queues;
 - private boards;
 - SSO;
-- social login;
+- social login providers other than the GitHub exception in RF-044/US-028;
 - localization;
 - real-time updates;
 - Redis;
@@ -1139,7 +1175,7 @@ These features require explicit backlog additions before implementation.
 - teams;
 - role-based access control;
 - notifications;
-- GitHub integration;
+- GitHub repository and issue integration (GitHub login is covered by RF-044/US-028);
 - webhooks;
 - custom domains;
 - private boards;

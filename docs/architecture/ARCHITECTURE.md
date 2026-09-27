@@ -87,7 +87,8 @@ Runtime versions and package versions are pinned by the root `package.json` and 
 
 - Better Auth
 - Cookie-based sessions
-- Email/password authentication for the initial release
+- Email/password and GitHub authentication; GitHub login extends the initial
+  email/password release through Sprint 005 (see ADR 0001)
 
 ## Testing
 
@@ -741,6 +742,11 @@ The request context is available throughout the use-case execution without passi
 # 17. Authentication
 
 Better Auth owns authentication mechanics and session persistence.
+
+GitHub is an additional identity provider in Sprint 005. It uses the same
+Principal and session boundary as email/password. GitHub credentials remain in
+API runtime configuration, and matching email alone never implicitly links an
+OAuth account to a password account. See ADR 0001.
 
 The Shipboard application converts authentication state into its own application concept:
 
