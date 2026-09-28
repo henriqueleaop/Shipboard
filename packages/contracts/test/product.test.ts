@@ -7,8 +7,11 @@ import {
   currentUserSchema,
   localReturnPathSchema,
   githubStartRequestSchema,
+  githubRepositoryUrlSchema,
+  isReservedUsername,
   signUpRequestSchema,
   updateBoardRequestSchema,
+  usernameSchema,
 } from '../src/index.js';
 
 describe('product HTTP contracts', () => {
@@ -94,5 +97,22 @@ describe('product HTTP contracts', () => {
     ]) {
       expect(localReturnPathSchema.safeParse(path).success).toBe(false);
     }
+  });
+
+  it('defines safe public identity and GitHub repository values', () => {
+    expect(usernameSchema.safeParse('henrique-dev').success).toBe(true);
+    expect(usernameSchema.safeParse('Henrique').success).toBe(false);
+    expect(usernameSchema.safeParse('me').success).toBe(false);
+    expect(isReservedUsername('boards')).toBe(true);
+    expect(
+      githubRepositoryUrlSchema.safeParse(
+        'https://github.com/shipboard/shipboard',
+      ).success,
+    ).toBe(true);
+    expect(
+      githubRepositoryUrlSchema.safeParse(
+        'https://github.com/shipboard/shipboard/issues',
+      ).success,
+    ).toBe(false);
   });
 });

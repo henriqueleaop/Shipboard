@@ -59,3 +59,12 @@ export {
   myVotesQuerySchema,
   myVotesResponseSchema,
 } from './votes/index.js';
+export {
+  usernameFieldLimits,
+  reservedUsernames,
+  isReservedUsername,
+  usernameSchema,
+  githubRepositoryUrlSchema,
+  boardVisibilitySchema,
+  type BoardVisibility,
+} from './profiles/index.js';
