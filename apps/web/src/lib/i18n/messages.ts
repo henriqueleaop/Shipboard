@@ -224,5 +224,10 @@ export type Message = keyof typeof portuguese;
 export type Locale = 'pt-BR' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
 export function translate(locale: Locale, message: Message): string {
-  return locale === 'pt-BR' ? portuguese[message] : message;
+  if (locale !== 'pt-BR') return message;
+  return portuguese[message]
+    .replace(/\bIdeias\b/g, 'Sugestões')
+    .replace(/\bideias\b/g, 'sugestões')
+    .replace(/\bIdeia\b/g, 'Sugestão')
+    .replace(/\bideia\b/g, 'sugestão');
 }

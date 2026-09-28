@@ -170,6 +170,9 @@ p {
   color: var(--text);
   cursor: pointer;
 }
+.site-header nav button {
+  inline-size: 5.75rem;
+}
 .preference-controls {
   margin-left: auto;
   gap: 0.65rem;
