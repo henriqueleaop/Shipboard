@@ -12,6 +12,7 @@ import {
 import { CharacterCounter } from '../../components/ui/character-counter';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
+import { GitHubRepositorySelect } from './github-repository-select';
 
 function suggestSlug(value: string): string {
   return value
@@ -133,39 +134,15 @@ export function BoardFields({
         <option value="UNLISTED">{t('Public with the link only')}</option>
         <option value="PRIVATE">{t('Private to you')}</option>
       </select>
-      <label htmlFor="board-github-repository">
-        {t('Public GitHub repository')}
-      </label>
-      <Input
-        id="board-github-repository"
-        type="url"
-        inputMode="url"
-        maxLength={boardFieldLimits.githubRepositoryUrl}
-        placeholder="https://github.com/owner/repository"
-        aria-invalid={Boolean(form.formState.errors.githubRepositoryUrl)}
-        aria-describedby={
-          form.formState.errors.githubRepositoryUrl
-            ? 'board-github-repository-counter board-github-repository-error'
-            : 'board-github-repository-counter'
-        }
-        {...form.register('githubRepositoryUrl', {
-          setValueAs: (value) => value || null,
-        })}
-      />
-      <CharacterCounter
-        id="board-github-repository-counter"
+      <GitHubRepositorySelect
         value={githubRepositoryUrl}
-        limit={boardFieldLimits.githubRepositoryUrl}
+        onChange={(value) =>
+          form.setValue('githubRepositoryUrl', value, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+        }
       />
-      {form.formState.errors.githubRepositoryUrl && (
-        <p
-          id="board-github-repository-error"
-          role="alert"
-          className="field-error"
-        >
-          {t('Enter the canonical URL of a public GitHub repository.')}
-        </p>
-      )}
     </>
   );
 }

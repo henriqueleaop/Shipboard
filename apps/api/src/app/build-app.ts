@@ -251,7 +251,12 @@ export async function buildApp(
 
   if (hasDatabaseClient(activeDatabase)) {
     const auth = createAuth(config, activeDatabase.db);
-    const { principal } = registerAuthRoutes(app, auth, config);
+    const { principal } = registerAuthRoutes(
+      app,
+      auth,
+      config,
+      activeDatabase.db,
+    );
     const boardUnit = createBoardUnitOfWork(activeDatabase);
     registerBoardRoutes(app, boardUnit, principal, config);
     registerSuggestionRoutes(

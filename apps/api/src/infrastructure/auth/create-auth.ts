@@ -25,14 +25,19 @@ export function createAuth(config: AppConfig, database: Database) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
     },
-    account: { accountLinking: { disableImplicitLinking: true } },
+    account: {
+      accountLinking: {
+        disableImplicitLinking: true,
+        trustedProviders: ['github'],
+      },
+    },
     ...(config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET
       ? {
           socialProviders: {
             github: {
               clientId: config.GITHUB_CLIENT_ID,
               clientSecret: config.GITHUB_CLIENT_SECRET,
-              scope: ['user:email'],
+              scope: ['read:user', 'user:email'],
             },
           },
         }

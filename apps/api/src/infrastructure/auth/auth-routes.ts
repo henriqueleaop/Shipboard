@@ -1,5 +1,6 @@
 import {
   authProvidersResponseSchema,
+  githubRepositoriesResponseSchema,
   currentUserSchema,
   githubStartRequestSchema,
   githubStartResponseSchema,
@@ -7,6 +8,7 @@ import {
   signUpRequestSchema,
 } from '@shipboard/contracts';
 import { fromNodeHeaders } from 'better-auth/node';
+import { and, eq } from 'drizzle-orm';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { z } from 'zod';
 
@@ -14,6 +16,8 @@ import type { createAuth } from './create-auth.js';
 import type { AppConfig } from '../../app/config.js';
 import { sendProblem } from '../../shared/http/problem.js';
 import { toPrincipal, type Principal } from '../../shared/types/principal.js';
+import { account } from '../database/auth-schema.js';
+import type { createDatabase } from '../database/client.js';
 
 type Auth = ReturnType<typeof createAuth>;
 
@@ -45,6 +49,7 @@ export function registerAuthRoutes(
   app: FastifyInstance,
   auth: Auth,
   config: AppConfig,
+  database: ReturnType<typeof createDatabase>['db'],
 ) {
   async function principal(request: FastifyRequest): Promise<Principal | null> {
     const session = await auth.api.getSession({
@@ -58,7 +63,15 @@ export function registerAuthRoutes(
     request: FastifyRequest,
     body: object | undefined,
   ): Promise<Response> {
-    const url = new URL(request.url, config.AUTH_BASE_URL);
+    return forwardPath(request, request.url, body);
+  }
+
+  async function forwardPath(
+    request: FastifyRequest,
+    path: string,
+    body: object | undefined,
+  ): Promise<Response> {
+    const url = new URL(path, config.AUTH_BASE_URL);
     return auth.handler(
       new Request(url, {
         method: request.method,
@@ -161,6 +174,80 @@ export function registerAuthRoutes(
     );
   });
 
+  app.get('/api/v1/me/github/repositories', async (request, reply) => {
+    const actor = await principal(request);
+    if (!actor) {
+      return sendProblem(
+        request,
+        reply,
+        401,
+        'AUTH_REQUIRED',
+        'Authentication required',
+        'Sign in to continue.',
+      );
+    }
+    const linked = await database
+      .select({ accessToken: account.accessToken })
+      .from(account)
+      .where(
+        and(eq(account.userId, actor.id), eq(account.providerId, 'github')),
+      )
+      .limit(1);
+    const token = linked[0]?.accessToken;
+    if (!token) {
+      return sendProblem(
+        request,
+        reply,
+        409,
+        'GITHUB_NOT_LINKED',
+        'GitHub account required',
+        'Link GitHub to choose one of your public repositories.',
+      );
+    }
+    const upstream = await fetch(
+      'https://api.github.com/user/repos?visibility=public&affiliation=owner&per_page=100&sort=updated',
+      {
+        headers: {
+          accept: 'application/vnd.github+json',
+          authorization: `Bearer ${token}`,
+          'user-agent': 'Shipboard',
+        },
+        signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!upstream.ok) {
+      return sendProblem(
+        request,
+        reply,
+        503,
+        'GITHUB_UNAVAILABLE',
+        'GitHub unavailable',
+        'Could not load public repositories. Try again.',
+      );
+    }
+    const payload: unknown = await upstream.json();
+    if (!Array.isArray(payload)) throw new Error('GitHub repository response is invalid.');
+    const items = payload.flatMap((item) => {
+      if (!item || typeof item !== 'object') return [];
+      const repo = item as Record<string, unknown>;
+      if (
+        repo.private === true ||
+        typeof repo.name !== 'string' ||
+        typeof repo.full_name !== 'string' ||
+        typeof repo.html_url !== 'string'
+      )
+        return [];
+      const parsed = githubRepositoriesResponseSchema.shape.items.element.safeParse({
+        name: repo.name,
+        fullName: repo.full_name,
+        url: repo.html_url,
+      });
+      return parsed.success ? [parsed.data] : [];
+    });
+    reply.header('cache-control', 'no-store');
+    return reply.code(200).send(githubRepositoriesResponseSchema.parse({ items }));
+  });
+
   app.post('/api/auth/sign-in/social', async (request, reply) => {
     if (!config.GITHUB_CLIENT_ID) {
       return sendProblem(
@@ -219,6 +306,50 @@ export function registerAuthRoutes(
       throw new Error('GitHub sign-in did not return an authorization URL.');
     }
     return reply.code(200).send(url.data);
+  });
+
+  app.post('/api/auth/link-social/github', async (request, reply) => {
+    if (!config.GITHUB_CLIENT_ID) {
+      return sendProblem(
+        request,
+        reply,
+        404,
+        'PROVIDER_UNAVAILABLE',
+        'Provider unavailable',
+        'GitHub sign-in is not configured.',
+      );
+    }
+    if (!(await principal(request))) {
+      return sendProblem(
+        request,
+        reply,
+        401,
+        'AUTH_REQUIRED',
+        'Authentication required',
+        'Sign in to continue.',
+      );
+    }
+    const response = await forwardPath(request, '/api/auth/link-social', {
+      provider: 'github',
+      callbackURL: new URL('/boards/new', config.WEB_ORIGIN).toString(),
+      errorCallbackURL: new URL('/boards/new?error=github', config.WEB_ORIGIN).toString(),
+      disableRedirect: true,
+    });
+    if (!response.ok) {
+      return sendProblem(
+        request,
+        reply,
+        400,
+        'GITHUB_LINK_FAILED',
+        'GitHub link failed',
+        'Could not start GitHub account linking. Try again.',
+      );
+    }
+    copyCookies(response, reply);
+    const result = githubStartResponseSchema.safeParse(await response.json());
+    if (!result.success)
+      throw new Error('GitHub link did not return an authorization URL.');
+    return reply.code(200).send(result.data);
   });
 
   app.get('/api/auth/callback/github', async (request, reply) => {

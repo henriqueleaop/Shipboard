@@ -1,10 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { CreateBoardRequest } from '@shipboard/contracts';
 import { BoardFields } from '../src/features/boards/board-fields';
+
+vi.mock('../src/features/boards/github-repository-select', () => ({
+  GitHubRepositorySelect: () => <select aria-label="GitHub repository" />,
+}));
+
+afterEach(cleanup);
 
 function Example() {
   const form = useForm<CreateBoardRequest>({
@@ -44,12 +50,9 @@ describe('board fields', () => {
     expect(slug).toHaveValue('my-board');
   });
 
-  it('offers all board visibility options and a bounded GitHub repository link', () => {
+  it('offers all board visibility options and a GitHub repository selector', () => {
     render(<Example />);
     expect(screen.getByLabelText('Visibility')).toHaveValue('PUBLIC');
-    expect(screen.getByLabelText('Public GitHub repository')).toHaveAttribute(
-      'maxlength',
-      '256',
-    );
+    expect(screen.getByLabelText('GitHub repository')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,7 @@
 import {
   boardResponseSchema,
+  githubRepositoriesResponseSchema,
+  githubStartResponseSchema,
   ownedBoardsResponseSchema,
   type CreateBoardRequest,
 } from '@shipboard/contracts';
@@ -48,4 +50,16 @@ export async function updateBoard(
     board: boardResponseSchema.parse(await response.json()),
     etag: response.headers.get('etag'),
   };
+}
+
+export async function githubRepositories(baseUrl: string) {
+  const response = await requestApi(baseUrl, '/api/v1/me/github/repositories');
+  return githubRepositoriesResponseSchema.parse(await response.json());
+}
+
+export async function startGithubLink(baseUrl: string) {
+  const response = await requestApi(baseUrl, '/api/auth/link-social/github', {
+    method: 'POST',
+  });
+  return githubStartResponseSchema.parse(await response.json());
 }

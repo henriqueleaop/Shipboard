@@ -65,6 +65,8 @@ export {
   isReservedUsername,
   usernameSchema,
   githubRepositoryUrlSchema,
+  githubRepositorySchema,
+  githubRepositoriesResponseSchema,
   boardVisibilitySchema,
   type BoardVisibility,
 } from './profiles/index.js';

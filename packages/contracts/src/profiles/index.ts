@@ -40,4 +40,14 @@ export const githubRepositoryUrlSchema = z.string().max(256).url().refine(
 
 export const boardVisibilitySchema = z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']);
 
+export const githubRepositorySchema = z.strictObject({
+  name: z.string().min(1),
+  fullName: z.string().min(1),
+  url: githubRepositoryUrlSchema,
+});
+
+export const githubRepositoriesResponseSchema = z.strictObject({
+  items: z.array(githubRepositorySchema),
+});
+
 export type BoardVisibility = z.infer<typeof boardVisibilitySchema>;

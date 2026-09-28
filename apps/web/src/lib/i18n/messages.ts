@@ -77,6 +77,11 @@ export const portuguese = {
   'Public with the link only': 'Público apenas pelo link',
   'Private to you': 'Privado para você',
   'Public GitHub repository': 'Repositório público do GitHub',
+  'Search your public repositories': 'Pesquisar seus repositórios públicos',
+  'Available GitHub repositories': 'Repositórios GitHub disponíveis',
+  'Connect GitHub': 'Conectar GitHub',
+  'No linked repository': 'Nenhum repositório vinculado',
+  'No public repositories found.': 'Nenhum repositório público encontrado.',
   'Enter the canonical URL of a public GitHub repository.':
     'Informe a URL canônica de um repositório público do GitHub.',
   'Enter a board name.': 'Informe o nome do quadro.',
