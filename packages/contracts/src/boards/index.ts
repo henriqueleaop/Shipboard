@@ -1,6 +1,12 @@
 import { z } from 'zod';
+import { isReservedBoardSlug } from './reserved-root-segments.js';
 
-export const boardSlugSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+export const boardSlugSchema = z
+  .string()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  .refine((value) => !isReservedBoardSlug(value), {
+    message: 'This slug is reserved for Shipboard.',
+  });
 
 export const createBoardRequestSchema = z.strictObject({
   name: z.string().trim().min(1),

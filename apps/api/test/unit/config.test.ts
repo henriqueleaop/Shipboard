@@ -54,4 +54,28 @@ describe('readConfig', () => {
       }),
     ).toThrow('Environment configuration is invalid.');
   });
+  it('requires GitHub credentials as a pair without exposing their values', () => {
+    const base = {
+      DATABASE_URL: databaseUrl,
+      AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
+    };
+    expect(readConfig(base).GITHUB_CLIENT_ID).toBeUndefined();
+    expect(
+      readConfig({
+        ...base,
+        GITHUB_CLIENT_ID: 'client',
+        GITHUB_CLIENT_SECRET: 'secret',
+      }),
+    ).toMatchObject({ GITHUB_CLIENT_ID: 'client' });
+    expect(() => readConfig({ ...base, GITHUB_CLIENT_ID: 'client' })).toThrow(
+      'Environment configuration is invalid.',
+    );
+    expect(() =>
+      readConfig({ ...base, GITHUB_CLIENT_SECRET: 'secret' }),
+    ).toThrow('Environment configuration is invalid.');
+    expect(
+      readConfig({ ...base, GITHUB_CLIENT_ID: '', GITHUB_CLIENT_SECRET: '' })
+        .GITHUB_CLIENT_ID,
+    ).toBeUndefined();
+  });
 });

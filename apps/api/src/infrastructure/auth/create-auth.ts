@@ -17,7 +17,26 @@ export function createAuth(config: AppConfig, database: Database) {
     baseURL: config.AUTH_BASE_URL,
     trustedOrigins: [config.WEB_ORIGIN],
     logger: { disabled: true },
-    emailAndPassword: { enabled: true, autoSignIn: true },
+    // Raw adapter failures must reach Fastify's sanitized handler, not Better Call's console fallback.
+    onAPIError: { throw: true },
+    emailAndPassword: {
+      enabled: true,
+      autoSignIn: true,
+      minPasswordLength: 12,
+      maxPasswordLength: 128,
+    },
+    account: { accountLinking: { disableImplicitLinking: true } },
+    ...(config.GITHUB_CLIENT_ID && config.GITHUB_CLIENT_SECRET
+      ? {
+          socialProviders: {
+            github: {
+              clientId: config.GITHUB_CLIENT_ID,
+              clientSecret: config.GITHUB_CLIENT_SECRET,
+              scope: ['user:email'],
+            },
+          },
+        }
+      : {}),
     advanced: {
       database: { generateId: 'uuid' },
       useSecureCookies:

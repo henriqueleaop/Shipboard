@@ -83,6 +83,14 @@ class DrizzleBoardStore implements BoardStore {
     return result.rows[0] ? mapBoard(result.rows[0]) : null;
   }
 
+  async findBySlug(slug: string): Promise<Board | null> {
+    const result = await this.executor.execute(sql`
+      SELECT id, owner_id, name, slug, description, version, created_at, updated_at, deleted_at
+      FROM boards WHERE slug = ${slug} AND deleted_at IS NULL
+    `);
+    return result.rows[0] ? mapBoard(result.rows[0]) : null;
+  }
+
   async listOwned(
     ownerId: string,
     limit: number,

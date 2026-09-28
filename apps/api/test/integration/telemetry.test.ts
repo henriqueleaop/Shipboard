@@ -13,6 +13,7 @@ import { readConfig } from '../../src/app/config.js';
 import {
   recordDatabaseCheck,
   recordHttpRequest,
+  recordFeedbackEvent,
   startTelemetry,
   stopTelemetry,
 } from '../../src/telemetry.js';
@@ -114,6 +115,8 @@ describe('API telemetry', () => {
 
       recordHttpRequest(500, 7);
       recordDatabaseCheck(true, 3);
+      recordFeedbackEvent('suggestion.created');
+      recordFeedbackEvent('vote.created');
       await metricReader.forceFlush();
       const metricNames = metricExporter
         .getMetrics()
@@ -126,6 +129,7 @@ describe('API telemetry', () => {
           'shipboard.http.duration_ms',
           'shipboard.http.errors',
           'shipboard.database.check_duration_ms',
+          'shipboard.feedback.events',
         ]),
       );
 

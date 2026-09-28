@@ -2,12 +2,46 @@ import { describe, expect, it } from 'vitest';
 
 import {
   liveHealthResponseSchema,
+  problemSchema,
   unavailableHealthResponseSchema,
 } from '@shipboard/contracts';
 import { buildApp } from '../../src/app/build-app.js';
 import { readConfig } from '../../src/app/config.js';
 
 describe('GET /health/live', () => {
+  it('keeps production rate limits and returns a safe shared Problem', async () => {
+    const app = await buildApp(
+      readConfig({
+        AUTH_SECRET: 'test-auth-secret-at-least-thirty-two-characters',
+        NODE_ENV: 'test',
+        LOG_LEVEL: 'silent',
+        DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/test',
+      }),
+      undefined,
+      { check: async () => undefined, close: async () => undefined },
+    );
+    app.get('/rate-fixture', () => ({ status: 'ok' }));
+    try {
+      for (let index = 0; index < 100; index++)
+        expect((await app.inject('/rate-fixture')).statusCode).toBe(200);
+      const response = await app.inject(
+        '/rate-fixture?code=sensitive-query-fixture',
+      );
+      expect(response.statusCode).toBe(429);
+      expect(problemSchema.parse(response.json())).toMatchObject({
+        code: 'RATE_LIMITED',
+        instance: '/rate-fixture',
+      });
+      expect(response.headers['content-type']).toContain(
+        'application/problem+json',
+      );
+      expect(Number(response.headers['retry-after'])).toBeGreaterThan(0);
+      expect(response.body).not.toContain('sensitive-query-fixture');
+    } finally {
+      await app.close();
+    }
+  });
+
   it('returns the shared liveness contract and a request id', async () => {
     const app = await buildApp(
       readConfig({

@@ -7,6 +7,10 @@ import { join } from 'node:path';
 import {
   boardResponseSchema,
   currentUserSchema,
+  publicBoardResponseSchema,
+  suggestionListResponseSchema,
+  suggestionResponseSchema,
+  voteStateResponseSchema,
   liveHealthResponseSchema,
   readyHealthResponseSchema,
   unavailableHealthResponseSchema,
@@ -183,6 +187,80 @@ async function verifyBoardJourney(container) {
       `edited-${suffix}`,
     'Edited board was not returned.',
   );
+  const publicSlug = `edited-${suffix}`;
+  const publicBoard = await request(
+    container,
+    `${base}/api/v1/public/boards/${publicSlug}`,
+  );
+  assert(publicBoard.status === 200, 'Image public board failed.');
+  assert(
+    publicBoardResponseSchema.parse(JSON.parse(publicBoard.body)).id ===
+      board.id,
+    'Public board identity differs.',
+  );
+  const idea = await request(
+    container,
+    `${base}/api/v1/boards/${board.id}/suggestions`,
+    {
+      method: 'POST',
+      headers: {
+        origin,
+        cookie,
+        'content-type': 'application/json',
+        'idempotency-key': randomUUID(),
+      },
+      body: JSON.stringify({
+        title: 'Image-backed feedback',
+        description: 'Test the full production flow.',
+      }),
+    },
+  );
+  assert(idea.status === 201, 'Image suggestion creation failed.');
+  const suggestion = suggestionResponseSchema.parse(JSON.parse(idea.body));
+  const vote = await request(
+    container,
+    `${base}/api/v1/suggestions/${suggestion.id}/vote`,
+    {
+      method: 'PUT',
+      headers: { origin, cookie },
+    },
+  );
+  assert(
+    vote.status === 200 &&
+      voteStateResponseSchema.parse(JSON.parse(vote.body)).voteCount === 1,
+    'Image vote failed.',
+  );
+  const status = await request(
+    container,
+    `${base}/api/v1/boards/${board.id}/suggestions/${suggestion.id}/status`,
+    {
+      method: 'PATCH',
+      headers: {
+        origin,
+        cookie,
+        'content-type': 'application/json',
+        'if-match': idea.headers.etag,
+      },
+      body: JSON.stringify({ status: 'PLANNED' }),
+    },
+  );
+  assert(
+    status.status === 200 &&
+      suggestionResponseSchema.parse(JSON.parse(status.body)).status ===
+        'PLANNED',
+    'Image status change failed.',
+  );
+  const publicIdeas = await request(
+    container,
+    `${base}/api/v1/public/boards/${publicSlug}/suggestions?sort=most_voted&status=PLANNED`,
+  );
+  const listed = suggestionListResponseSchema.parse(
+    JSON.parse(publicIdeas.body),
+  );
+  assert(
+    publicIdeas.status === 200 && listed.items[0]?.voteCount === 1,
+    'Image public result failed.',
+  );
 }
 
 async function verifyApi() {
@@ -191,7 +269,7 @@ async function verifyApi() {
     '--rm',
     '--entrypoint',
     'node',
-    'shipboard-api:sprint-004',
+    'shipboard-api:sprint-005',
     '--input-type=module',
     '-e',
     `import fs from 'node:fs';import('@shipboard/contracts').then(()=>{if(process.getuid()===0||['tsx','vitest','drizzle-kit'].some(x=>fs.existsSync('/app/node_modules/.bin/'+x)))process.exit(1);console.log(process.getuid())})`,
@@ -201,7 +279,7 @@ async function verifyApi() {
     'API image must run as non-root with built contracts.',
   );
 
-  const missing = await run(['run', '--rm', 'shipboard-api:sprint-004'], {
+  const missing = await run(['run', '--rm', 'shipboard-api:sprint-005'], {
     allowFailure: true,
     timeout: 15_000,
   });
@@ -253,7 +331,7 @@ async function verifyApi() {
     `AUTH_SECRET=${authSecret}`,
     '-e',
     'AUTH_ALLOW_INSECURE_LOCAL=true',
-    'shipboard-api:sprint-004',
+    'shipboard-api:sprint-005',
   ]);
   await until(async () => {
     const response = await request(
@@ -290,7 +368,7 @@ async function verifyApi() {
       network,
       '-e',
       `DATABASE_URL=${databaseUrl}`,
-      'shipboard-api:sprint-004',
+      'shipboard-api:sprint-005',
       'node',
       'dist/infrastructure/database/migrate.js',
     ]);
@@ -307,7 +385,7 @@ async function verifyApi() {
     'SELECT count(*) FROM drizzle.__drizzle_migrations',
   ]);
   assert(
-    journalAfter.stdout === '3',
+    journalAfter.stdout === '4',
     'Image migrations were not applied exactly once.',
   );
   await verifyBoardJourney(apiName);
@@ -338,7 +416,7 @@ async function verifyWeb() {
     '--rm',
     '--entrypoint',
     'node',
-    'shipboard-web:sprint-004',
+    'shipboard-web:sprint-005',
     '-e',
     "const fs=require('node:fs');if(process.getuid()===0||fs.existsSync('/app/node_modules/.bin/next')||fs.existsSync('/app/node_modules/.bin/tsc'))process.exit(1);console.log(process.getuid())",
   ]);
@@ -353,7 +431,7 @@ async function verifyWeb() {
     webName,
     '-e',
     'PORT=3999',
-    'shipboard-web:sprint-004',
+    'shipboard-web:sprint-005',
   ]);
   await until(
     async () =>
@@ -362,7 +440,8 @@ async function verifyWeb() {
   );
   const page = await request(webName, 'http://127.0.0.1:3999/');
   assert(
-    page.body.includes('Shipboard') && page.body.includes('Create an account'),
+    page.body.includes('Shipboard') &&
+      page.body.includes('Start a feedback board'),
     'Web production page did not render.',
   );
   const asset = page.body.match(/\/_next\/static\/[^" ]+\.css/);
@@ -569,7 +648,7 @@ async function verifyFull() {
     'SELECT count(*) FROM drizzle.__drizzle_migrations',
   ]);
   assert(
-    journalAfter.stdout === '3',
+    journalAfter.stdout === '4',
     'Compose migrations were not applied exactly once.',
   );
   await verifyBoardJourney(api);

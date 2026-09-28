@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.build.json && node scripts/copy-migrations.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:unit": "vitest run test/unit src --exclude '**/test/integration/**'",
-    "test:integration": "pnpm build && vitest run test/integration",
+    "test:integration": "pnpm build && vitest run test/integration --maxWorkers=1",
     "test:database": "pnpm build && vitest run test/integration/database.test.ts",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "node --env-file-if-exists=../../.env dist/infrastructure/database/migrate.js"

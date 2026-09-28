@@ -329,6 +329,8 @@ Status: `DONE`
 Acceptance criteria:
 
 - valid email/password creates an account;
+- Sprint 005 registration refinement: 12?128 characters, Unicode letters plus a number/symbol/space, rejecting common and short repeated sequences; exact bytes preserved;
+- registration UI requires matching confirmation and each password input has an accessible inline visibility control;
 - duplicate email is rejected;
 - invalid input returns validation errors;
 - password is never returned or logged;
@@ -1244,3 +1246,7 @@ A sprint may select only backlog items whose dependencies are satisfied or expli
 Stories should preferably produce a vertically testable increment.
 
 Every completed sprint must leave the repository in a validated and deployable state.
+
+### Sprint 005 user-authorized interface refinement
+
+On 2026-09-27 the user added GitHub-inspired styling, light/dark/system themes, Portuguese/English localization and standardized feedback to US-020/021 and account regression scope. See `docs/sprints/sprint-005.md` and `docs/specs/005-feedback-interface.md` for acceptance and validation. No story status changes are implied.

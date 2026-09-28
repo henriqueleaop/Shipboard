@@ -1,4 +1,5 @@
 import React, { type TextareaHTMLAttributes } from 'react';
+import { cn } from '../../lib/utils';
 
 export function Textarea({
   className = '',
@@ -6,7 +7,10 @@ export function Textarea({
 }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={`w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 aria-invalid:border-red-600 ${className}`}
+      className={cn(
+        'w-full rounded-md border border-[var(--border)] bg-[var(--canvas)] px-3 py-2 text-[var(--text)] shadow-sm outline-none placeholder:text-[var(--muted)] focus:border-[var(--link)] focus:ring-2 focus:ring-blue-500/25 aria-invalid:border-[var(--danger)]',
+        className,
+      )}
       {...props}
     />
   );

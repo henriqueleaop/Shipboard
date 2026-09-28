@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -34,6 +35,69 @@ function runCli(databaseUrl: string) {
 }
 
 describe('PostgreSQL 18 and migrations', () => {
+  it('upgrades Sprint 004 data without changing accounts, sessions or boards', async () => {
+    const container = await new PostgreSqlContainer(image).start();
+    const database = createDatabase(container.getConnectionUri());
+    const fixture = await mkdtemp(join(tmpdir(), 'shipboard-upgrade-'));
+    try {
+      await cp(migrationSource, fixture, { recursive: true });
+      const journalPath = join(fixture, 'meta/_journal.json');
+      const journal = JSON.parse(await readFile(journalPath, 'utf8')) as {
+        entries: { idx: number }[];
+      };
+      journal.entries = journal.entries.filter((entry) => entry.idx < 3);
+      await writeFile(journalPath, JSON.stringify(journal), 'utf8');
+      await migrate(database.db, { migrationsFolder: fixture });
+      const userId = randomUUID();
+      const boardId = randomUUID();
+      await database.db.execute(sql`
+        INSERT INTO "user" (id, name, email) VALUES (${userId}::uuid, 'Upgrade owner', 'upgrade+owner@example.test')
+      `);
+      await database.db.execute(sql`
+        INSERT INTO account (id, account_id, provider_id, user_id, password, updated_at)
+        VALUES (${randomUUID()}::uuid, ${userId}, 'credential', ${userId}::uuid, 'disposable-password-hash', now())
+      `);
+      await database.db.execute(sql`
+        INSERT INTO session (id, user_id, token, expires_at, updated_at)
+        VALUES (${randomUUID()}::uuid, ${userId}::uuid, 'disposable-session-token', now() + interval '1 day', now())
+      `);
+      await database.db.execute(sql`
+        INSERT INTO boards (id, owner_id, name, slug, description, created_at, updated_at)
+        VALUES (${boardId}::uuid, ${userId}::uuid, 'Existing board', 'existing-board', 'Unicode café 日本語', now(), now())
+      `);
+      const snapshot = () =>
+        database.db.execute(sql`
+        SELECT (SELECT jsonb_agg(to_jsonb(u)) FROM "user" u) AS users,
+          (SELECT jsonb_agg(to_jsonb(a)) FROM account a) AS accounts,
+          (SELECT jsonb_agg(to_jsonb(s)) FROM session s) AS sessions,
+          (SELECT jsonb_agg(to_jsonb(b)) FROM boards b) AS boards
+      `);
+      const before = await snapshot();
+      expect(runCli(container.getConnectionUri()).status).toBe(0);
+      expect(runCli(container.getConnectionUri()).status).toBe(0);
+      expect((await snapshot()).rows).toEqual(before.rows);
+      const tables = await database.db.execute(sql`
+        SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'
+          AND table_name IN ('suggestions', 'votes', 'suggestion_idempotency')
+      `);
+      expect(tables.rows).toHaveLength(3);
+      const slugAudit = await database.db.execute(sql`
+        SELECT slug FROM boards WHERE deleted_at IS NULL AND slug IN ('login', 'register', 'boards', 'api')
+      `);
+      expect(slugAudit.rows).toEqual([]);
+    } finally {
+      await database.close();
+      await container.stop();
+      const temporaryRoot = resolve(tmpdir());
+      if (
+        resolve(fixture).startsWith(temporaryRoot + '\\') ||
+        resolve(fixture).startsWith(temporaryRoot + '/')
+      ) {
+        await rm(fixture, { recursive: true, force: true });
+      }
+    }
+  }, 60_000);
+
   it('queries PostgreSQL and applies the compiled migration CLI once', async () => {
     const container = await new PostgreSqlContainer(image).start();
     const database = createDatabase(container.getConnectionUri());
@@ -112,7 +176,7 @@ describe('PostgreSQL 18 and migrations', () => {
       const migrations = await database.db.execute(sql`
         SELECT count(*)::integer AS count FROM drizzle.__drizzle_migrations
       `);
-      expect(migrations.rows[0]?.['count']).toBe(3);
+      expect(migrations.rows[0]?.['count']).toBe(4);
     } finally {
       await database.close();
       await container.stop();

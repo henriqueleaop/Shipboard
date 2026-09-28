@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./board-slugs": {
+      "types": "./dist/boards/reserved-root-segments.d.ts",
+      "import": "./dist/boards/reserved-root-segments.js"
     }
   },
   "files": [

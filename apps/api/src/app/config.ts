@@ -24,10 +24,27 @@ const environmentSchema = z
       .refine((value) => !value.toLowerCase().includes('replace')),
     AUTH_BASE_URL: z.url().default('http://localhost:3001'),
     AUTH_ALLOW_INSECURE_LOCAL: z.enum(['true', 'false']).default('false'),
+    GITHUB_CLIENT_ID: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
+    GITHUB_CLIENT_SECRET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().min(1).optional(),
+    ),
     OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
     OTEL_SERVICE_NAME: z.string().min(1).max(100).default('shipboard-api'),
   })
   .superRefine((value, context) => {
+    if (
+      Boolean(value.GITHUB_CLIENT_ID) !== Boolean(value.GITHUB_CLIENT_SECRET)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'GitHub OAuth credentials must be configured together.',
+        path: ['GITHUB_CLIENT_ID'],
+      });
+    }
     const web = new URL(value.WEB_ORIGIN);
     const api = new URL(value.AUTH_BASE_URL);
     const local = [web.hostname, api.hostname].every(

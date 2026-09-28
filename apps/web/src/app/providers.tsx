@@ -7,15 +7,21 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
+import { PreferencesProvider } from '../lib/i18n/provider';
+import type { Locale, Theme } from '../lib/i18n/messages';
 
 const ApiUrlContext = createContext('http://localhost:3001');
 
 export function Providers({
   apiUrl,
   children,
+  initialLocale,
+  initialTheme,
 }: {
   apiUrl: string;
   children: ReactNode;
+  initialLocale?: Locale;
+  initialTheme?: Theme;
 }) {
   const [client] = useState(
     () =>
@@ -25,7 +31,9 @@ export function Providers({
   );
   return (
     <ApiUrlContext.Provider value={apiUrl}>
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      <PreferencesProvider initialLocale={initialLocale} initialTheme={initialTheme}>
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      </PreferencesProvider>
     </ApiUrlContext.Provider>
   );
 }

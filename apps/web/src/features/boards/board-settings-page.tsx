@@ -1,5 +1,7 @@
 'use client';
 
+import { useLocale } from '../../lib/i18n/provider';
+
 import {
   createBoardRequestSchema,
   type CreateBoardRequest,
@@ -12,10 +14,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { useApiUrl } from '../../app/providers';
-import { ApiError, getBoard, updateBoard } from '../api/client';
+import { BoardWorkspace } from '../../components/layout/board-workspace';
+import { Button } from '../../components/ui/button';
+import { ApiError } from '../../lib/api/client';
+import { getBoard, updateBoard } from './api';
 import { BoardFields } from './board-fields';
 
 export default function BoardDetailPage() {
+  const { t, errorMessage } = useLocale();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const apiUrl = useApiUrl();
@@ -76,7 +82,7 @@ export default function BoardDetailPage() {
   if (board.isPending)
     return (
       <main className="page">
-        <p>Loading board…</p>
+        <p>{t("Loading board…")}</p>
       </main>
     );
   if (board.isError) {
@@ -85,13 +91,13 @@ export default function BoardDetailPage() {
       <main className="page">
         <h1>
           {error instanceof ApiError && error.status === 401
-            ? 'Sign in to continue'
-            : 'Board unavailable'}
+            ? t("Sign in to continue")
+            : t("Board unavailable")}
         </h1>
         <p role="alert">
           {error instanceof ApiError
-            ? error.message
-            : 'Could not load this board.'}
+            ? errorMessage(error)
+            : t("Could not load this board.")}
         </p>
         <Link
           href={
@@ -101,57 +107,55 @@ export default function BoardDetailPage() {
           }
         >
           {error instanceof ApiError && error.status === 401
-            ? 'Sign in'
-            : 'My boards'}
+            ? t("Sign in")
+            : t("My boards")}
         </Link>
       </main>
     );
   }
 
   return (
-    <main className="page narrow">
-      <Link href="/boards">← My boards</Link>
-      <p className="eyebrow">Board management</p>
-      <h1>{board.data.board.name}</h1>
-      <p>
-        Edit the details of this board. The public page will be available when
-        feedback features are added.
-      </p>
-      <form onSubmit={form.handleSubmit((values) => save.mutate(values))}>
-        <BoardFields form={form} />
-        {conflict && (
-          <div role="alert" className="notice error">
-            This board changed in another tab. Your edits remain in the form.
-            Reload the latest version before saving again.
-            <button type="button" onClick={reloadBoard}>
-              Reload board
-            </button>
-          </div>
-        )}
-        {save.isError && !conflict && (
-          <p role="alert" className="notice error">
-            {save.error instanceof ApiError
-              ? save.error.code === 'SLUG_CONFLICT'
-                ? 'That slug is already in use. Choose another.'
-                : save.error.status === 401
-                  ? 'Your session expired. Sign in again.'
-                  : save.error.message
-              : 'Could not connect. Try again.'}
-          </p>
-        )}
-        {save.isSuccess && (
-          <p role="status" className="notice success">
-            Board saved.
-          </p>
-        )}
-        <button
-          className="primary"
-          type="submit"
-          disabled={save.isPending || conflict}
-        >
-          {save.isPending ? 'Saving…' : 'Save changes'}
-        </button>
-      </form>
+    <main className="page">
+      <BoardWorkspace id={id} slug={board.data.board.slug} active="settings">
+        <Link href="/boards">{t("← My boards")}</Link>
+        <p className="eyebrow">{t("Board management")}</p>
+        <h1>{board.data.board.name}</h1>
+        <p>{t("Edit the details of this board, review ideas, or open the public page.")}{' '}</p>
+        <div className="actions">
+          <Button asChild tone="primary">
+            <Link href={`/boards/${id}/suggestions`}>{t("Review ideas")}</Link>
+          </Button>
+          <Link className="button" href={`/${board.data.board.slug}`}>{t("View public board ↗")}{' '}</Link>
+        </div>
+        <form onSubmit={form.handleSubmit((values) => save.mutate(values))}>
+          <BoardFields form={form} />
+          {conflict && (
+            <div role="alert" className="notice error">{t("This board changed in another tab. Your edits remain in the form. Reload the latest version before saving again.")}{' '}<button type="button" onClick={reloadBoard}>{t("Reload board")}{' '}</button>
+            </div>
+          )}
+          {save.isError && !conflict && (
+            <p role="alert" className="notice error">
+              {save.error instanceof ApiError
+                ? save.error.code === 'SLUG_CONFLICT'
+                  ? t("That slug is already in use. Choose another.")
+                  : save.error.status === 401
+                    ? t("Your session expired. Sign in again.")
+                    : errorMessage(save.error)
+                : t("Could not connect. Try again.")}
+            </p>
+          )}
+          {save.isSuccess && (
+            <p role="status" className="notice success">{t("Board saved.")}{' '}</p>
+          )}
+          <button
+            className="primary"
+            type="submit"
+            disabled={save.isPending || conflict}
+          >
+            {save.isPending ? t("Saving…") : t("Save changes")}
+          </button>
+        </form>
+      </BoardWorkspace>
     </main>
   );
 }

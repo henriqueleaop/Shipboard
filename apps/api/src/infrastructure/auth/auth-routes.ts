@@ -1,5 +1,8 @@
 import {
+  authProvidersResponseSchema,
   currentUserSchema,
+  githubStartRequestSchema,
+  githubStartResponseSchema,
   signInRequestSchema,
   signUpRequestSchema,
 } from '@shipboard/contracts';
@@ -147,6 +150,128 @@ export function registerAuthRoutes(
       );
     }
     return reply.code(204).send();
+  });
+
+  app.get('/api/v1/auth/providers', async (_request, reply) => {
+    reply.header('cache-control', 'no-store');
+    return reply.code(200).send(
+      authProvidersResponseSchema.parse({
+        github: Boolean(config.GITHUB_CLIENT_ID),
+      }),
+    );
+  });
+
+  app.post('/api/auth/sign-in/social', async (request, reply) => {
+    if (!config.GITHUB_CLIENT_ID) {
+      return sendProblem(
+        request,
+        reply,
+        404,
+        'PROVIDER_UNAVAILABLE',
+        'Provider unavailable',
+        'GitHub sign-in is not configured.',
+      );
+    }
+    const result = githubStartRequestSchema.safeParse(request.body);
+    if (!result.success) {
+      return sendProblem(
+        request,
+        reply,
+        400,
+        'VALIDATION_FAILED',
+        'Invalid return destination',
+        'Choose a valid destination within Shipboard.',
+        validationErrors(result.error),
+      );
+    }
+    const callbackURL = new URL(
+      result.data.returnTo,
+      config.WEB_ORIGIN,
+    ).toString();
+    const errorCallbackURL = new URL(
+      '/login?error=github',
+      config.WEB_ORIGIN,
+    ).toString();
+    const response = await forward(request, {
+      provider: 'github',
+      callbackURL,
+      errorCallbackURL,
+      disableRedirect: true,
+    });
+    if (!response.ok) {
+      return sendProblem(
+        request,
+        reply,
+        400,
+        'GITHUB_SIGN_IN_FAILED',
+        'GitHub sign-in failed',
+        'Could not start GitHub sign-in. Try again.',
+      );
+    }
+    copyCookies(response, reply);
+    const resultBody = (await response.json()) as unknown;
+    const url = githubStartResponseSchema.safeParse(
+      resultBody && typeof resultBody === 'object' && 'url' in resultBody
+        ? { url: resultBody.url }
+        : resultBody,
+    );
+    if (!url.success) {
+      throw new Error('GitHub sign-in did not return an authorization URL.');
+    }
+    return reply.code(200).send(url.data);
+  });
+
+  app.get('/api/auth/callback/github', async (request, reply) => {
+    if (!config.GITHUB_CLIENT_ID) {
+      return sendProblem(
+        request,
+        reply,
+        404,
+        'PROVIDER_UNAVAILABLE',
+        'Provider unavailable',
+        'GitHub sign-in is not configured.',
+      );
+    }
+    const response = await forward(request, undefined);
+    copyCookies(response, reply);
+    const location = response.headers.get('location');
+    if (location && response.status >= 300 && response.status < 400) {
+      const target = new URL(location, config.AUTH_BASE_URL);
+      const webOrigin = new URL(config.WEB_ORIGIN).origin;
+      if (target.origin !== webOrigin) {
+        return reply
+          .code(302)
+          .header(
+            'location',
+            new URL('/login?error=github', config.WEB_ORIGIN).toString(),
+          )
+          .send();
+      }
+      if (
+        target.pathname === '/login' &&
+        target.searchParams.get('error') === 'github'
+      ) {
+        return reply
+          .code(302)
+          .header(
+            'location',
+            new URL('/login?error=github', config.WEB_ORIGIN).toString(),
+          )
+          .send();
+      }
+      return reply
+        .code(response.status)
+        .header('location', target.toString())
+        .send();
+    }
+    return sendProblem(
+      request,
+      reply,
+      400,
+      'GITHUB_CALLBACK_FAILED',
+      'GitHub sign-in failed',
+      'Return to the login page and try again.',
+    );
   });
 
   app.get('/api/v1/me', async (request, reply) => {

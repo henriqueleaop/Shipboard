@@ -1,10 +1,6 @@
 # Sprint 005 interface inventory
 
-The Shipboard redesign uses an ink/navy navigation surface, warm neutral canvas,
-teal primary actions and restrained amber accents. Status colors always pair
-with labels. Type, spacing, borders and focus styles are shared across every
-screen. The product language remains English. No decorative control implies an
-unavailable feature.
+The Shipboard redesign follows [GitHub Primer color usage](https://primer.style/product/getting-started/foundations/color-usage/): neutral surfaces, compact system typography, semantic borders, blue links and green primary actions. Shared semantic CSS variables support light/dark/system themes. Theme and Portuguese/English language preferences persist in cookies and are honored by server rendering. All screen copy, statuses, errors and dates use a typed catalog or Intl; unknown Problem codes use a safe localized fallback. Status colors always pair with labels. No decorative control implies an unavailable feature.
 
 The public board presents product identity, a suggestion action, sort/filter
 controls and rows with vote, title, description and status. Suggestion detail

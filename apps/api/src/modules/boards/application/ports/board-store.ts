@@ -14,6 +14,7 @@ export interface ReplayRecord {
 export interface BoardStore {
   insert(board: Board): Promise<void>;
   find(id: string): Promise<Board | null>;
+  findBySlug(slug: string): Promise<Board | null>;
   listOwned(
     ownerId: string,
     limit: number,

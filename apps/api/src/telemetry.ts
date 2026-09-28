@@ -18,6 +18,20 @@ let httpMetrics:
   | { requestCount: Counter; requestDuration: Histogram; errorCount: Counter }
   | undefined;
 let databaseCheckDuration: Histogram | undefined;
+let feedbackEvents: Counter | undefined;
+
+export type FeedbackEvent =
+  | 'suggestion.created'
+  | 'suggestion.replayed'
+  | 'suggestion.status_changed'
+  | 'suggestion.forbidden'
+  | 'suggestion.conflict'
+  | 'vote.created'
+  | 'vote.removed';
+
+export function recordFeedbackEvent(event: FeedbackEvent): void {
+  feedbackEvents?.add(1, { event });
+}
 
 let sdk: NodeSDK | undefined;
 
@@ -62,7 +76,14 @@ export async function startTelemetry(
             }),
           ]
         : [],
-    instrumentations: [getNodeAutoInstrumentations()],
+    instrumentations: [
+      getNodeAutoInstrumentations({
+        '@opentelemetry/instrumentation-http': {
+          ignoreIncomingRequestHook: (request) =>
+            request.url?.startsWith('/api/auth/') ?? false,
+        },
+      }),
+    ],
   });
   await sdk.start();
   const meter = metrics.getMeter('shipboard-api');
@@ -74,6 +95,7 @@ export async function startTelemetry(
   databaseCheckDuration = meter.createHistogram(
     'shipboard.database.check_duration_ms',
   );
+  feedbackEvents = meter.createCounter('shipboard.feedback.events');
 }
 
 export async function stopTelemetry(): Promise<void> {
@@ -81,6 +103,7 @@ export async function stopTelemetry(): Promise<void> {
   sdk = undefined;
   httpMetrics = undefined;
   databaseCheckDuration = undefined;
+  feedbackEvents = undefined;
 }
 
 export function recordDatabaseCheck(

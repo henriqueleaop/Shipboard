@@ -1,3 +1,7 @@
+'use client';
+
+import { useLocale } from '../../lib/i18n/provider';
+
 import type { UseFormReturn } from 'react-hook-form';
 import React from 'react';
 
@@ -19,12 +23,13 @@ export function BoardFields({
 }: {
   form: UseFormReturn<CreateBoardRequest>;
 }) {
+  const { t } = useLocale();
   const slug = form.watch('slug');
   const suggestion = suggestSlug(slug);
   const slugError = form.formState.errors.slug;
   return (
     <>
-      <label htmlFor="board-name">Board name</label>
+      <label htmlFor="board-name">{t("Board name")}</label>
       <Input
         id="board-name"
         autoComplete="organization"
@@ -39,7 +44,7 @@ export function BoardFields({
           {form.formState.errors.name.message}
         </p>
       )}
-      <label htmlFor="board-slug">Public slug</label>
+      <label htmlFor="board-slug">{t("Public slug")}</label>
       <Input
         id="board-slug"
         autoCapitalize="none"
@@ -65,8 +70,7 @@ export function BoardFields({
               shouldDirty: true,
             })
           }
-        >
-          Use suggestion: {suggestion}
+        >{t("Use suggestion:")}{' '}{suggestion}
         </button>
       )}
       {slugError && (
@@ -74,7 +78,7 @@ export function BoardFields({
           {slugError.message}
         </p>
       )}
-      <label htmlFor="board-description">Description</label>
+      <label htmlFor="board-description">{t("Description")}</label>
       <Textarea
         id="board-description"
         rows={4}

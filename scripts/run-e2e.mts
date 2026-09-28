@@ -1,7 +1,16 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { request as httpRequest } from 'node:http';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs';
+import {
+  createServer as createHttpServer,
+  request as httpRequest,
+} from 'node:http';
 import {
   createServer as createTlsServer,
   type Server as TlsServer,
@@ -9,6 +18,7 @@ import {
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 
@@ -51,6 +61,7 @@ const container = await new PostgreSqlContainer('postgres:18.1').start();
 let api: ChildProcess | undefined;
 let web: ChildProcess | undefined;
 const tlsServers: TlsServer[] = [];
+let githubFixture: ReturnType<typeof createHttpServer> | undefined;
 const certificateDirectory = mkdtempSync(join(tmpdir(), 'shipboard-e2e-tls-'));
 try {
   const databaseUrl = container.getConnectionUri();
@@ -62,6 +73,75 @@ try {
   const webUrl = `http://localhost:${webPort}`;
   const publicApiUrl = `https://localhost:${apiTlsPort}`;
   const publicWebUrl = `https://localhost:${webTlsPort}`;
+  const githubPort = await freePort();
+  const githubUrl = `http://localhost:${githubPort}`;
+  const githubEmail = `github-${randomUUID()}@example.test`;
+  const authorizationCodes = new Set<string>();
+  githubFixture = createHttpServer(async (request, response) => {
+    const url = new URL(request.url ?? '/', githubUrl);
+    response.setHeader('cache-control', 'no-store');
+    if (url.pathname === '/authorize') {
+      const code = randomUUID();
+      authorizationCodes.add(code);
+      const callback = new URL(
+        url.searchParams.get('redirect_uri') ?? publicApiUrl,
+      );
+      callback.searchParams.set('code', code);
+      callback.searchParams.set('state', url.searchParams.get('state') ?? '');
+      response.setHeader('content-type', 'text/html');
+      response.end(
+        `<html><body><h1>GitHub test identity</h1><p>Authorize identity and private verified email.</p><a href="${callback.toString().replaceAll('&', '&amp;')}">Authorize test identity</a></body></html>`,
+      );
+      return;
+    }
+    response.setHeader('content-type', 'application/json');
+    if (url.pathname === '/token') {
+      let body = '';
+      for await (const chunk of request) body += String(chunk);
+      const code = new URLSearchParams(body).get('code');
+      if (!code || !authorizationCodes.delete(code)) {
+        response.writeHead(400).end(JSON.stringify({ error: 'invalid_grant' }));
+        return;
+      }
+      response.end(
+        JSON.stringify({
+          access_token: 'isolated-fixture-access',
+          token_type: 'bearer',
+          scope: 'read:user user:email',
+        }),
+      );
+      return;
+    }
+    if (url.pathname === '/user') {
+      response.end(
+        JSON.stringify({
+          id: 987654,
+          login: 'shipboard-fixture',
+          name: 'Shipboard Fixture',
+          email: null,
+          avatar_url: null,
+        }),
+      );
+      return;
+    }
+    if (url.pathname === '/emails') {
+      response.end(
+        JSON.stringify([
+          {
+            email: githubEmail,
+            primary: true,
+            verified: true,
+            visibility: null,
+          },
+        ]),
+      );
+      return;
+    }
+    response.writeHead(404).end('{}');
+  });
+  await new Promise<void>((done) =>
+    githubFixture!.listen(githubPort, '127.0.0.1', done),
+  );
   const keyPath = join(certificateDirectory, 'key.pem');
   const certPath = join(certificateDirectory, 'cert.pem');
   const gitOpenSsl = 'C:\\Program Files\\Git\\usr\\bin\\openssl.exe';
@@ -134,6 +214,9 @@ try {
     AUTH_SECRET: authSecret,
     AUTH_BASE_URL: publicApiUrl,
     WEB_ORIGIN: publicWebUrl,
+    GITHUB_CLIENT_ID: 'isolated-fixture-client',
+    GITHUB_CLIENT_SECRET: 'isolated-fixture-secret',
+    SHIPBOARD_E2E_GITHUB_URL: githubUrl,
     OTEL_EXPORTER_OTLP_ENDPOINT: undefined,
   };
   const migration = spawnSync(
@@ -142,12 +225,20 @@ try {
     { cwd: apiRoot, env: apiEnv, encoding: 'utf8', timeout: 30_000 },
   );
   if (migration.status !== 0) throw new Error('E2E migration failed.');
-  api = spawn(process.execPath, ['dist/server.js'], {
-    cwd: apiRoot,
-    env: apiEnv,
-    windowsHide: true,
-    stdio: 'ignore',
-  });
+  api = spawn(
+    process.execPath,
+    [
+      '--import',
+      pathToFileURL(resolve('scripts/e2e-github-fetch.mjs')).href,
+      'dist/server.js',
+    ],
+    {
+      cwd: apiRoot,
+      env: apiEnv,
+      windowsHide: true,
+      stdio: 'ignore',
+    },
+  );
   await ready(`${apiUrl}/health/ready`, api, 'API');
   web = spawn(process.execPath, ['.next/standalone/apps/web/server.js'], {
     cwd: webRoot,
@@ -163,24 +254,64 @@ try {
     stdio: 'ignore',
   });
   await ready(webUrl, web, 'Web');
-  const runner = spawn(
-    process.execPath,
-    [resolve('node_modules/@playwright/test/cli.js'), 'test'],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, E2E_WEB_URL: publicWebUrl },
-      stdio: 'inherit',
-      windowsHide: true,
-    },
-  );
-  const code = await new Promise<number | null>((done, fail) => {
-    runner.once('error', fail);
-    runner.once('exit', done);
-  });
-  if (code !== 0) throw new Error('Playwright journey failed.');
+  const specs = readdirSync(resolve('e2e'))
+    .filter((name) => name.endsWith('.spec.ts'))
+    .sort();
+  for (const [index, spec] of specs.entries()) {
+    // Each scenario file gets a fresh production API process, so its real
+    // in-memory rate-limit window does not include other files' fixtures.
+    if (index > 0) {
+      await stop(api);
+      api = spawn(
+        process.execPath,
+        [
+          '--import',
+          pathToFileURL(resolve('scripts/e2e-github-fetch.mjs')).href,
+          'dist/server.js',
+        ],
+        {
+          cwd: apiRoot,
+          env: apiEnv,
+          windowsHide: true,
+          stdio: 'ignore',
+        },
+      );
+      await ready(`${apiUrl}/health/ready`, api, 'API');
+    }
+    const runner = spawn(
+      process.execPath,
+      [
+        resolve('node_modules/@playwright/test/cli.js'),
+        'test',
+        `e2e/${spec}`,
+        '--output',
+        `test-results/${spec.replace('.spec.ts', '')}`,
+      ],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          E2E_WEB_URL: publicWebUrl,
+          E2E_API_URL: publicApiUrl,
+          E2E_DATABASE_URL: databaseUrl,
+          E2E_GITHUB_URL: githubUrl,
+        },
+        stdio: 'inherit',
+        windowsHide: true,
+      },
+    );
+    const code = await new Promise<number | null>((done, fail) => {
+      runner.once('error', fail);
+      runner.once('exit', done);
+    });
+    if (code !== 0) throw new Error(`Playwright journey failed: ${spec}`);
+  }
 } finally {
   await stop(web);
   await stop(api);
+  await new Promise<void>((done) =>
+    githubFixture ? githubFixture.close(() => done()) : done(),
+  );
   await Promise.all(
     tlsServers.map(
       (server) => new Promise<void>((done) => server.close(() => done())),

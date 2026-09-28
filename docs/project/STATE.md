@@ -4,11 +4,11 @@
 
 ## Active Sprint
 
-No active sprint. Sprints 001–004 are closed; US-004–US-010 are `DONE` on `sprint/004-account-boards`.
+Sprint 005 implementation is active on `sprint/005-public-board-suggestions`. Sprints 001–004 are closed; US-004–US-010 remain `DONE`. Sprint 005 stories have not been closed.
 
 ## Current Stage
 
-Runnable monorepo with a verified account-to-owned-board workflow, PostgreSQL persistence, production application images, and an optional complete local Compose stack.
+Runnable monorepo with account, board and public feedback workflows, PostgreSQL persistence, production application images, and an optional complete local Compose stack.
 
 ## Implemented
 
@@ -25,6 +25,10 @@ Runnable monorepo with a verified account-to-owned-board workflow, PostgreSQL pe
 - Better Auth email/password registration, login, logout, PostgreSQL sessions, and a principal adapter with safe public contracts.
 - Owned-board creation, cursor list, detail and metadata editing with versioned writes, global slug uniqueness, soft-delete filtering, and transactional creation idempotency.
 - Credentialed Next.js account/board pages and a runtime browser API URL. Playwright exercises the real workflow through isolated PostgreSQL and HTTPS with secure cookies.
+- Public board/list/detail API and pages; authenticated suggestion creation with transactional idempotency; bounded sort/filter/cursor queries and owner status changes with ETag preconditions.
+- Vote persistence with active uniqueness, counted public projections, authenticated PUT/DELETE and batched personal state; public voting and owner review screens.
+- Responsive Tailwind-backed visual redesign, reusable UI/feedback components, and explicit validation/guidance for existing and new fields.
+- Optional GitHub provider configuration and social-start/callback bridge through Better Auth. HTTP and HTTPS browser fixtures prove persisted provider sessions, repeat login and logout; live GitHub authorization has not been verified.
 
 ## Infrastructure
 
@@ -32,19 +36,19 @@ The web shell remains independent. The API requires a valid `DATABASE_URL` at st
 
 ## Product Capabilities
 
-An account can register, create boards, return after login, edit name/description/slug, and sign out. Owner authorization, stale-write protection, and retry-safe creation are enforced by the API. Public feedback and voting are not implemented.
+An account can register, create boards, return after login, edit name/description/slug, and sign out. A visitor can read an active public board and its suggestions; a signed-in account can submit and vote, while the board owner can change suggestion status. Owner authorization, stale-write protection, retry-safe creation, and active-record filtering are enforced by the API.
 
 ## Database
 
-PostgreSQL 18 has the baseline plus versioned auth and board/idempotency migrations. `Board` is the first persistent domain entity and follows the `BaseEntity` convention. Migrations run explicitly, not on API startup.
+PostgreSQL 18 has the baseline plus versioned auth, board/idempotency and feedback migrations. `Board`, `Suggestion` and `Vote` follow the `BaseEntity` convention. Migrations run explicitly, not on API startup.
 
 ## Validation Status
 
-Sprint 004 closure reran frozen install, formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, image smokes, and full Compose smoke successfully. [Sprint 004 Linux CI run 36286450729](https://github.com/henriqueleaop/Shipboard/actions/runs/36286450729) passed quality, unit, integration, Compose, build, E2E, and container jobs on implementation commit `337d354`.
+Sprint 005 local formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, individual image smokes, and full Compose smoke have passed during implementation. A live GitHub OAuth app and Sprint 005 Linux PR CI have not been verified. The last web image predates a small auth error-message change and requires rebuilding for final image evidence.
 
 ## Known Issues / Technical Debt
 
-Public feedback and voting remain future backlog scope.
+Live GitHub authorization and final Sprint 005 CI remain pending gates; do not mark new backlog stories `DONE` before closure.
 
 ## Important Decisions
 

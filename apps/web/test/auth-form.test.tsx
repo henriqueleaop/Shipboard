@@ -26,10 +26,22 @@ vi.mock('next/navigation', () => ({
 }));
 
 const server = setupServer();
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => {
+  server.use(
+    http.get('http://localhost:3001/api/v1/auth/providers', () =>
+      HttpResponse.json({ github: false }),
+    ),
+  );
+  server.listen({ onUnhandledRequest: 'error' });
+});
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  server.use(
+    http.get('http://localhost:3001/api/v1/auth/providers', () =>
+      HttpResponse.json({ github: false }),
+    ),
+  );
 });
 afterAll(() => server.close());
 
@@ -45,8 +57,8 @@ describe('authentication form', () => {
             password: string;
           };
           expect(body).toEqual({
-            email: 'owner@example.com',
-            password: 'correct-password',
+            email: 'owner+ideas@example.com',
+            password: '  correct-日本語-password  ',
           });
           posted = true;
           return HttpResponse.json({
@@ -70,13 +82,22 @@ describe('authentication form', () => {
     fireEvent.submit(
       screen.getByRole('button', { name: 'Create account' }).closest('form')!,
     );
-    expect(await screen.findAllByRole('alert')).toHaveLength(2);
+    expect(await screen.findAllByRole('alert')).toHaveLength(3);
     fireEvent.change(screen.getByLabelText('Email'), {
-      target: { value: 'owner@example.com' },
+      target: { value: 'owner+ideas@example.com' },
     });
     fireEvent.change(screen.getByLabelText('Password'), {
-      target: { value: 'correct-password' },
+      target: { value: '  correct-日本語-password  ' },
     });
+    fireEvent.change(screen.getByLabelText('Confirm password'), {
+      target: { value: (screen.getByLabelText('Password') as HTMLInputElement).value },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Show password' }));
+    expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'text');
+    expect(screen.getByLabelText('Password')).toHaveValue(
+      '  correct-日本語-password  ',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Hide password' }));
     fireEvent.submit(
       screen.getByRole('button', { name: 'Create account' }).closest('form')!,
     );

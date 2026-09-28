@@ -15,7 +15,7 @@ import {
   readyHealthResponseSchema,
   unavailableHealthResponseSchema,
 } from '@shipboard/contracts';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyInstance } from 'fastify';
 
 import type { AppConfig } from './config.js';
 import { createDatabase } from '../infrastructure/database/client.js';
@@ -24,8 +24,19 @@ import { registerAuthRoutes } from '../infrastructure/auth/auth-routes.js';
 import { BoardError } from '../modules/boards/application/board-error.js';
 import { registerBoardRoutes } from '../modules/boards/http/board-routes.js';
 import { createBoardUnitOfWork } from '../modules/boards/infrastructure/persistence/board-store.drizzle.js';
+import { createBoardAccess } from '../modules/boards/index.js';
+import { SuggestionError } from '../modules/suggestions/application/suggestion-error.js';
+import { registerSuggestionRoutes } from '../modules/suggestions/http/suggestion-routes.js';
+import { createSuggestionUnitOfWork } from '../modules/suggestions/infrastructure/persistence/suggestion-store.drizzle.js';
+import { VoteError } from '../modules/votes/application/vote-use-cases.js';
+import { registerVoteRoutes } from '../modules/votes/http/vote-routes.js';
+import { DrizzleVoteStore } from '../modules/votes/infrastructure/persistence/vote-store.drizzle.js';
 import { sendProblem } from '../shared/http/problem.js';
-import { recordDatabaseCheck, recordHttpRequest } from '../telemetry.js';
+import {
+  recordDatabaseCheck,
+  recordFeedbackEvent,
+  recordHttpRequest,
+} from '../telemetry.js';
 
 const requestIdPattern = /^[A-Za-z0-9._-]{8,128}$/;
 const requestStartedAt = new WeakMap<object, number>();
@@ -69,6 +80,7 @@ function problem(
   status: number,
   title: string,
   requestId: string,
+  instance: string,
   traceId?: string,
 ) {
   return {
@@ -81,6 +93,7 @@ function problem(
         : 'An unexpected error occurred.',
     code: status === 404 ? 'NOT_FOUND' : 'INTERNAL_ERROR',
     requestId,
+    instance,
     traceId,
   };
 }
@@ -91,6 +104,7 @@ export async function buildApp(
   database?: DatabaseCheck,
 ): Promise<FastifyInstance> {
   const app = Fastify({
+    logController: new LogController({ disableRequestLogging: true }),
     logger: {
       level: config.LOG_LEVEL,
       base: { service: config.OTEL_SERVICE_NAME, environment: config.NODE_ENV },
@@ -126,7 +140,7 @@ export async function buildApp(
   await app.register(cors, {
     origin: config.WEB_ORIGIN,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Content-Type',
       'If-Match',
@@ -147,6 +161,10 @@ export async function buildApp(
   });
   app.addHook('onSend', async (request, reply) => {
     reply.header('x-request-id', request.id);
+    if (reply.statusCode === 429) {
+      reply.type('application/problem+json');
+      reply.header('cache-control', 'no-store');
+    }
   });
   app.addHook('onResponse', async (request, reply) => {
     recordHttpRequest(
@@ -234,9 +252,18 @@ export async function buildApp(
   if (hasDatabaseClient(activeDatabase)) {
     const auth = createAuth(config, activeDatabase.db);
     const { principal } = registerAuthRoutes(app, auth, config);
-    registerBoardRoutes(
+    const boardUnit = createBoardUnitOfWork(activeDatabase);
+    registerBoardRoutes(app, boardUnit, principal, config);
+    registerSuggestionRoutes(
       app,
-      createBoardUnitOfWork(activeDatabase),
+      createSuggestionUnitOfWork(activeDatabase),
+      createBoardAccess(boardUnit),
+      principal,
+      config,
+    );
+    registerVoteRoutes(
+      app,
+      new DrizzleVoteStore(activeDatabase.db),
       principal,
       config,
     );
@@ -247,10 +274,77 @@ export async function buildApp(
       .type('application/problem+json')
       .code(404)
       .send(
-        problem(404, 'Not found', request.id, requestTraceId(request.headers)),
+        problem(
+          404,
+          'Not found',
+          request.id,
+          request.url.split('?')[0]!,
+          requestTraceId(request.headers),
+        ),
       );
   });
   app.setErrorHandler((error, request, reply) => {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'statusCode' in error &&
+      error.statusCode === 429
+    ) {
+      return sendProblem(
+        request,
+        reply,
+        429,
+        'RATE_LIMITED',
+        'Too many requests',
+        'Wait for the current request window, then try again.',
+      );
+    }
+    if (error instanceof VoteError) {
+      request.log.info({
+        event: 'vote.operation_rejected',
+        errorCode: error.code,
+        requestId: request.id,
+      });
+      return sendProblem(
+        request,
+        reply,
+        404,
+        error.code,
+        'Vote operation failed',
+        'The requested resource does not exist.',
+      );
+    }
+    if (error instanceof SuggestionError) {
+      if (error.code === 'SUGGESTION_FORBIDDEN')
+        recordFeedbackEvent('suggestion.forbidden');
+      if (error.code === 'SUGGESTION_STALE')
+        recordFeedbackEvent('suggestion.conflict');
+      const status = {
+        SUGGESTION_NOT_FOUND: 404,
+        BOARD_NOT_FOUND: 404,
+        SUGGESTION_FORBIDDEN: 403,
+        SUGGESTION_STALE: 412,
+        IDEMPOTENCY_KEY_REUSED: 409,
+        IDEMPOTENCY_IN_PROGRESS: 409,
+      }[error.code];
+      if (error.code === 'IDEMPOTENCY_IN_PROGRESS')
+        reply.header('retry-after', '1');
+      request.log.info({
+        event: 'suggestion.operation_rejected',
+        errorCode: error.code,
+        requestId: request.id,
+      });
+      return sendProblem(
+        request,
+        reply,
+        status,
+        error.code,
+        'Suggestion operation failed',
+        error.code === 'SUGGESTION_STALE'
+          ? 'The suggestion changed. Reload it before editing again.'
+          : 'The requested suggestion operation could not be completed.',
+      );
+    }
     if (error instanceof BoardError) {
       const status = {
         BOARD_NOT_FOUND: 404,
@@ -282,7 +376,7 @@ export async function buildApp(
     request.log.error({
       event: 'http.unexpected_error',
       requestId: request.id,
-      err: error,
+      errorCode: 'UNEXPECTED_ERROR',
     });
     return reply
       .type('application/problem+json')
@@ -292,6 +386,7 @@ export async function buildApp(
           500,
           'Internal server error',
           request.id,
+          request.url.split('?')[0]!,
           requestTraceId(request.headers),
         ),
       );

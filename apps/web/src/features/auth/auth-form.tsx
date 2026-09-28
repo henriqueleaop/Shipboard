@@ -1,31 +1,81 @@
 'use client';
 
+import { useLocale } from '../../lib/i18n/provider';
+
 import {
   signInRequestSchema,
   signUpRequestSchema,
+  localReturnPathSchema,
   type SignUpRequest,
 } from '@shipboard/contracts';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { z } from 'zod';
 
 import { useApiUrl } from '../../app/providers';
 import { Input } from '../../components/ui/input';
-import { ApiError, signIn, signUp } from '../api/client';
+import { Button } from '../../components/ui/button';
+import { PasswordInput } from '../../components/ui/password-input';
+import { authProviders, signIn, signUp, startGithub } from './api';
+import { ApiError } from '../../lib/api/client';
 
 export function AuthForm({ mode }: { mode: 'register' | 'login' }) {
+  const { t, errorMessage } = useLocale();
   const apiUrl = useApiUrl();
   const router = useRouter();
   const client = useQueryClient();
-  const [showPassword, setShowPassword] = useState(false);
-  const form = useForm<SignUpRequest>({
-    resolver: zodResolver(
-      mode === 'register' ? signUpRequestSchema : signInRequestSchema,
-    ),
-    defaultValues: { email: '', password: '' },
+  const [githubError, setGithubError] = useState(false);
+  const [returnPath, setReturnPath] = useState('/boards');
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setGithubError(params.get('error') === 'github');
+    const parsed = localReturnPathSchema.safeParse(
+      params.get('returnTo') ?? '/boards',
+    );
+    setReturnPath(parsed.success ? parsed.data : '/boards');
+  }, []);
+  const providers = useQuery({
+    queryKey: ['auth-providers'],
+    queryFn: () => authProviders(apiUrl),
+  });
+  const github = useMutation({
+    mutationFn: async () => {
+      const returnTo =
+        new URLSearchParams(window.location.search).get('returnTo') ??
+        '/boards';
+      return startGithub(apiUrl, returnTo);
+    },
+    onSuccess: ({ url }) => window.location.assign(url),
+  });
+  const schema = signInRequestSchema
+    .extend({ confirmation: z.string() })
+    .superRefine((values, context) => {
+      if (mode !== 'register') return;
+      const result = signUpRequestSchema.safeParse({
+        email: values.email,
+        password: values.password,
+      });
+      if (!result.success)
+        context.addIssue({
+          code: 'custom',
+          path: ['password'],
+          message:
+            'Use 12–128 characters, letters and a number, symbol or space. Avoid common or repeated sequences.',
+        });
+      if (!values.confirmation || values.confirmation !== values.password)
+        context.addIssue({
+          code: 'custom',
+          path: ['confirmation'],
+          message: 'Passwords must match.',
+        });
+    });
+  const form = useForm<SignUpRequest & { confirmation: string }>({
+    resolver: zodResolver(schema),
+    defaultValues: { email: '', password: '', confirmation: '' },
   });
   const action = useMutation({
     mutationFn: (input: SignUpRequest) =>
@@ -33,23 +83,41 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' }) {
     onSuccess: async (user) => {
       client.clear();
       client.setQueryData(['current-user'], user);
-      router.push('/boards');
+      const returnTo =
+        new URLSearchParams(window.location.search).get('returnTo') ??
+        '/boards';
+      const safePath = localReturnPathSchema.safeParse(returnTo);
+      router.push(safePath.success ? safePath.data : '/boards');
       router.refresh();
     },
   });
 
   return (
-    <main className="page narrow">
-      <p className="eyebrow">Your space for better ideas</p>
-      <h1>{mode === 'register' ? 'Start something good.' : 'Welcome back.'}</h1>
+    <main className="page narrow auth-page">
+      <p className="eyebrow">{t('Your space for better ideas')}</p>
+      <h1>
+        {mode === 'register' ? t('Start something good.') : t('Welcome back.')}
+      </h1>
       <p>
         {mode === 'register'
-          ? 'Open a board where your community can shape what comes next.'
-          : 'Your boards and feedback are ready when you are.'}
+          ? t('Open a board where your community can shape what comes next.')
+          : t('Your boards and feedback are ready when you are.')}
       </p>
+      {githubError && (
+        <p role="alert" className="notice error">
+          {t(
+            'GitHub sign-in was cancelled or could not be completed. Try again or use email.',
+          )}{' '}
+        </p>
+      )}
       <div className="form-panel">
-        <form onSubmit={form.handleSubmit((values) => action.mutate(values))}>
-          <label htmlFor="email">Email</label>
+        <form
+          noValidate
+          onSubmit={form.handleSubmit(({ email, password }) =>
+            action.mutate({ email, password }),
+          )}
+        >
+          <label htmlFor="email">{t('Email')}</label>
           <Input
             id="email"
             type="email"
@@ -65,59 +133,110 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' }) {
           />
           {form.formState.errors.email && (
             <p id="email-error" role="alert" className="field-error">
-              {form.formState.errors.email.message}
+              {t('Enter a valid email address.')}
             </p>
           )}
-          <label htmlFor="password">Password</label>
-          <Input
+          <label htmlFor="password">{t('Password')}</label>
+          <PasswordInput
             id="password"
-            type={showPassword ? 'text' : 'password'}
             autoComplete={
               mode === 'register' ? 'new-password' : 'current-password'
             }
             aria-invalid={Boolean(form.formState.errors.password)}
             aria-describedby={
-              form.formState.errors.password ? 'password-error' : undefined
+              form.formState.errors.password
+                ? 'password-error password-hint'
+                : mode === 'register'
+                  ? 'password-hint'
+                  : undefined
             }
             {...form.register('password')}
           />
-          <button
-            type="button"
-            className="button"
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-            onClick={() => setShowPassword((value) => !value)}
-          >
-            {showPassword ? 'Hide password' : 'Show password'}
-          </button>
+          {mode === 'register' && (
+            <p id="password-hint" className="hint">
+              {t(
+                'Use 12–128 characters, letters and a number, symbol or space. Avoid common or repeated sequences.',
+              )}
+            </p>
+          )}
           {form.formState.errors.password && (
             <p id="password-error" role="alert" className="field-error">
-              {form.formState.errors.password.message}
+              {mode === 'register'
+                ? t(
+                    'Use 12–128 characters, letters and a number, symbol or space. Avoid common or repeated sequences.',
+                  )
+                : t('Enter your password.')}
             </p>
+          )}
+          {mode === 'register' && (
+            <>
+              <label htmlFor="confirmation">{t('Confirm password')}</label>
+              <PasswordInput
+                id="confirmation"
+                confirmation
+                autoComplete="new-password"
+                aria-invalid={Boolean(form.formState.errors.confirmation)}
+                aria-describedby={
+                  form.formState.errors.confirmation
+                    ? 'confirmation-error'
+                    : undefined
+                }
+                {...form.register('confirmation')}
+              />
+              {form.formState.errors.confirmation && (
+                <p id="confirmation-error" role="alert" className="field-error">
+                  {t('Passwords must match.')}
+                </p>
+              )}
+            </>
           )}
           {action.isError && (
             <p role="alert" className="notice error">
               {action.error instanceof ApiError
-                ? action.error.message
-                : 'Could not connect. Try again.'}
+                ? errorMessage(action.error)
+                : t('Could not connect. Try again.')}
             </p>
           )}
-          <button className="primary" type="submit" disabled={action.isPending}>
+          <Button tone="primary" type="submit" disabled={action.isPending}>
             {action.isPending
-              ? 'Please wait…'
+              ? t('Please wait…')
               : mode === 'register'
-                ? 'Create account'
-                : 'Sign in'}
-          </button>
+                ? t('Create account')
+                : t('Sign in')}
+          </Button>
         </form>
+        {providers.data?.github && (
+          <div className="auth-provider">
+            <Button
+              className="w-full"
+              type="button"
+              onClick={() => github.mutate()}
+              disabled={github.isPending}
+            >
+              {github.isPending ? t('Connecting…') : t('Continue with GitHub')}
+            </Button>
+            {github.isError && (
+              <p role="alert" className="field-error">
+                {t('Could not start GitHub sign-in. Try again.')}{' '}
+              </p>
+            )}
+          </div>
+        )}
       </div>
       <p className="alternate">
         {mode === 'register' ? (
           <>
-            Already registered? <Link href="/login">Sign in</Link>
+            {t('Already registered?')}{' '}
+            <Link href={`/login?returnTo=${encodeURIComponent(returnPath)}`}>
+              {t('Sign in')}{' '}
+            </Link>
           </>
         ) : (
           <>
-            New to Shipboard? <Link href="/register">Create account</Link>
+            {t('New to Shipboard?')}{' '}
+            <Link href={`/register?returnTo=${encodeURIComponent(returnPath)}`}>
+              {t('Create account')}{' '}
+            </Link>
           </>
         )}
       </p>

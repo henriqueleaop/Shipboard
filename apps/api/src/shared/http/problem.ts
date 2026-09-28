@@ -19,7 +19,7 @@ export function sendProblem(
         title,
         status,
         detail,
-        instance: request.url,
+        instance: request.url.split('?')[0],
         code,
         requestId: request.id,
         ...(errors ? { errors } : {}),

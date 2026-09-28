@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { isReservedBoardSlug } from '@shipboard/contracts/board-slugs';
 
 import { BaseEntity } from '../../../shared/domain/base-entity.js';
 
@@ -37,7 +38,8 @@ export class Board extends BaseEntity {
   ): Board {
     if (
       !metadata.name.trim() ||
-      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(metadata.slug)
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(metadata.slug) ||
+      isReservedBoardSlug(metadata.slug)
     ) {
       throw new Error('Invalid board metadata.');
     }
@@ -58,6 +60,14 @@ export class Board extends BaseEntity {
     metadata: Partial<Pick<BoardState, 'name' | 'slug' | 'description'>>,
     now = new Date(),
   ): Board {
+    if (
+      (metadata.name !== undefined && !metadata.name.trim()) ||
+      (metadata.slug !== undefined &&
+        (isReservedBoardSlug(metadata.slug) ||
+          !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(metadata.slug)))
+    ) {
+      throw new Error('Invalid board metadata.');
+    }
     return new Board({
       id: this.id,
       ownerId: this.ownerId,

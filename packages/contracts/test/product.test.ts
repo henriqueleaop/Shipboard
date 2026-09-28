@@ -4,6 +4,8 @@ import {
   boardResponseSchema,
   createBoardRequestSchema,
   currentUserSchema,
+  localReturnPathSchema,
+  githubStartRequestSchema,
   signUpRequestSchema,
   updateBoardRequestSchema,
 } from '../src/index.js';
@@ -27,6 +29,13 @@ describe('product HTTP contracts', () => {
     ).toBe(false);
     expect(updateBoardRequestSchema.safeParse({}).success).toBe(false);
     expect(
+      createBoardRequestSchema.safeParse({
+        name: 'A',
+        slug: 'login',
+        description: '',
+      }).success,
+    ).toBe(false);
+    expect(
       updateBoardRequestSchema.safeParse({ slug: 'new-slug' }).success,
     ).toBe(true);
   });
@@ -48,5 +57,19 @@ describe('product HTTP contracts', () => {
     expect(
       boardResponseSchema.safeParse({ id: crypto.randomUUID() }).success,
     ).toBe(false);
+  });
+  it('accepts only local GitHub return destinations', () => {
+    expect(githubStartRequestSchema.parse({}).returnTo).toBe('/boards');
+    for (const path of ['/acme', '/acme/suggestions/abc?tab=all']) {
+      expect(localReturnPathSchema.safeParse(path).success).toBe(true);
+    }
+    for (const path of [
+      'https://evil.example',
+      '//evil.example',
+      '/\\evil.example',
+      'boards',
+    ]) {
+      expect(localReturnPathSchema.safeParse(path).success).toBe(false);
+    }
   });
 });

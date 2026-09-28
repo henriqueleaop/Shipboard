@@ -12,6 +12,10 @@ export {
   signUpRequestSchema,
   signInRequestSchema,
   currentUserSchema,
+  localReturnPathSchema,
+  githubStartRequestSchema,
+  githubStartResponseSchema,
+  authProvidersResponseSchema,
   type CurrentUser,
   type SignUpRequest,
   type SignInRequest,
@@ -28,3 +32,27 @@ export {
   type BoardResponse,
 } from './boards/index.js';
 export { problemSchema, type Problem } from './common/problem.js';
+export {
+  isReservedBoardSlug,
+  reservedBoardSlugs,
+} from './boards/reserved-root-segments.js';
+export {
+  suggestionStatusSchema,
+  suggestionSortSchema,
+  publicBoardResponseSchema,
+  createSuggestionRequestSchema,
+  suggestionResponseSchema,
+  suggestionListQuerySchema,
+  suggestionListResponseSchema,
+  changeSuggestionStatusRequestSchema,
+  type SuggestionStatus,
+  type SuggestionSort,
+  type CreateSuggestionRequest,
+  type SuggestionResponse,
+  type SuggestionListQuery,
+} from './suggestions/index.js';
+export {
+  voteStateResponseSchema,
+  myVotesQuerySchema,
+  myVotesResponseSchema,
+} from './votes/index.js';
