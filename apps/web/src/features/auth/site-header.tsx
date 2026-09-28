@@ -50,7 +50,9 @@ export function SiteHeader() {
       <nav aria-label={t('Main navigation')}>
         {user.data ? (
           <>
-            <Link href="/boards">{t('My boards')}</Link>
+            <Link className="header-center-link" href="/boards">
+              {t('My boards')}
+            </Link>
             <button type="button" onClick={logout} disabled={pending}>
               {pending ? t('Signing out…') : t('Sign out')}
             </button>
