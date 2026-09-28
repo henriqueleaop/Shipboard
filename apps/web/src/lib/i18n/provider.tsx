@@ -114,31 +114,42 @@ export function useLocale() {
 
 export function PreferenceControls() {
   const { locale, theme, setLocale, setTheme, t } = useLocale();
+  const dark = theme === 'dark';
   return (
     <div className="preference-controls">
-      <label className="sr-only" htmlFor="site-language">
-        {t('Language')}
+      <label className="language-switch" htmlFor="site-language">
+        <span className={locale === 'en' ? 'active' : undefined}>EN</span>
+        <input
+          id="site-language"
+          type="checkbox"
+          role="switch"
+          aria-label={t('Language')}
+          checked={locale === 'pt-BR'}
+          onChange={(event) => setLocale(event.target.checked ? 'pt-BR' : 'en')}
+        />
+        <span className="switch-track" aria-hidden="true">
+          <span />
+        </span>
+        <span className={locale === 'pt-BR' ? 'active' : undefined}>PT-BR</span>
       </label>
-      <select
-        id="site-language"
-        value={locale}
-        onChange={(event) => setLocale(event.target.value as Locale)}
+      <button
+        className="theme-toggle"
+        type="button"
+        aria-label={dark ? t('Light') : t('Dark')}
+        title={dark ? t('Light') : t('Dark')}
+        onClick={() => setTheme(dark ? 'light' : 'dark')}
       >
-        <option value="pt-BR">Português</option>
-        <option value="en">English</option>
-      </select>
-      <label className="sr-only" htmlFor="site-theme">
-        {t('Theme')}
-      </label>
-      <select
-        id="site-theme"
-        value={theme}
-        onChange={(event) => setTheme(event.target.value as Theme)}
-      >
-        <option value="system">{t('System')}</option>
-        <option value="light">{t('Light')}</option>
-        <option value="dark">{t('Dark')}</option>
-      </select>
+        {dark ? (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5 6.8 6.8 0 0 0 20.5 14.2Z" />
+          </svg>
+        )}
+      </button>
     </div>
   );
 }

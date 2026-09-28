@@ -1,13 +1,12 @@
 'use client';
 
-import { useLocale, PreferenceControls } from '../../lib/i18n/provider';
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 
 import { useApiUrl } from '../../app/providers';
+import { PreferenceControls, useLocale } from '../../lib/i18n/provider';
 import { currentUser, signOut } from './api';
 
 export function SiteHeader() {
@@ -39,29 +38,35 @@ export function SiteHeader() {
 
   return (
     <header className="site-header">
-      <Link className="brand" href="/">
-        <span className="brand-mark" aria-hidden="true">
-          S
-        </span>
-        Shipboard
-      </Link>
-      <nav aria-label={t("Main navigation")}>
-        {user.data ? (
-          <>
-            <Link href="/boards">{t("My boards")}</Link>
-            <button type="button" onClick={logout} disabled={pending}>
-              {pending ? t("Signing out…") : t("Sign out")}
-            </button>
-          </>
-        ) : (
-          <>
-            <Link href="/login">{t("Sign in")}</Link>
-            <Link href="/register">{t("Create account")}</Link>
-          </>
-        )}
-      </nav>
+      <div className="header-primary">
+        <Link className="brand" href="/">
+          <span className="brand-mark" aria-hidden="true">
+            S
+          </span>
+          Shipboard
+        </Link>
+        <nav aria-label={t('Main navigation')}>
+          {user.data ? (
+            <>
+              <Link href="/boards">{t('My boards')}</Link>
+              <button type="button" onClick={logout} disabled={pending}>
+                {pending ? t('Signing out…') : t('Sign out')}
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">{t('Sign in')}</Link>
+              <Link href="/register">{t('Create account')}</Link>
+            </>
+          )}
+        </nav>
+      </div>
       <PreferenceControls />
-      {logoutError && <p role="alert" className="header-error">{t('Could not sign out. Try again.')}</p>}
+      {logoutError && (
+        <p role="alert" className="header-error">
+          {t('Could not sign out. Try again.')}
+        </p>
+      )}
     </header>
   );
 }
