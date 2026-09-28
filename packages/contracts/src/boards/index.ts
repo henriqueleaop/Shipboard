@@ -1,10 +1,15 @@
 import { z } from 'zod';
 import { isReservedBoardSlug } from './reserved-root-segments.js';
+import {
+  boardVisibilitySchema,
+  githubRepositoryUrlSchema,
+} from '../profiles/index.js';
 
 export const boardFieldLimits = {
   name: 100,
   slug: 64,
   description: 500,
+  githubRepositoryUrl: 256,
 } as const;
 
 export const boardSlugSchema = z
@@ -19,6 +24,8 @@ export const createBoardRequestSchema = z.strictObject({
   name: z.string().trim().min(1).max(boardFieldLimits.name),
   slug: boardSlugSchema,
   description: z.string().max(boardFieldLimits.description),
+  visibility: boardVisibilitySchema.optional(),
+  githubRepositoryUrl: githubRepositoryUrlSchema.nullable().optional(),
 });
 
 export const updateBoardRequestSchema = createBoardRequestSchema
@@ -31,6 +38,8 @@ export const boardResponseSchema = z.strictObject({
   name: z.string(),
   slug: boardSlugSchema,
   description: z.string(),
+  visibility: boardVisibilitySchema,
+  githubRepositoryUrl: githubRepositoryUrlSchema.nullable(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
   version: z.number().int().positive(),

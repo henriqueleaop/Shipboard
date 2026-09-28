@@ -6,7 +6,13 @@ describe('Board', () => {
   it('preserves identity and creation time through metadata changes and logical removal', () => {
     const created = Board.create(
       crypto.randomUUID(),
-      { name: 'Original', slug: 'original', description: '' },
+      {
+        name: 'Original',
+        slug: 'original',
+        description: '',
+        visibility: 'UNLISTED',
+        githubRepositoryUrl: 'https://github.com/shipboard/shipboard',
+      },
       new Date('2026-01-01T00:00:00Z'),
     );
     const changed = created.withMetadata(
@@ -18,6 +24,10 @@ describe('Board', () => {
     expect(changed.ownerId).toBe(created.ownerId);
     expect(changed.createdAt).toEqual(created.createdAt);
     expect(changed.version).toBe(2);
+    expect(changed.visibility).toBe('UNLISTED');
+    expect(changed.githubRepositoryUrl).toBe(
+      'https://github.com/shipboard/shipboard',
+    );
     expect(removed.version).toBe(3);
     expect(removed.deletedAt).toEqual(removed.updatedAt);
   });

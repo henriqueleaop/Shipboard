@@ -72,6 +72,13 @@ export const portuguese = {
     'Use letras minúsculas, números e hífens simples.',
   'Use suggestion:': 'Usar sugestão:',
   Description: 'Descrição',
+  Visibility: 'Visibilidade',
+  'Public and listed on your profile': 'Público e exibido no seu perfil',
+  'Public with the link only': 'Público apenas pelo link',
+  'Private to you': 'Privado para você',
+  'Public GitHub repository': 'Repositório público do GitHub',
+  'Enter the canonical URL of a public GitHub repository.':
+    'Informe a URL canônica de um repositório público do GitHub.',
   'Enter a board name.': 'Informe o nome do quadro.',
   'Choose an available address using lowercase letters, numbers and single hyphens.':
     'Escolha um endereço disponível com letras minúsculas, números e hífens simples.',

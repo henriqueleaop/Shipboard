@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { isReservedBoardSlug } from '@shipboard/contracts/board-slugs';
+import type { BoardVisibility } from '@shipboard/contracts';
 
 import { BaseEntity } from '../../../shared/domain/base-entity.js';
 
@@ -9,6 +10,8 @@ export interface BoardState {
   name: string;
   slug: string;
   description: string;
+  visibility: BoardVisibility;
+  githubRepositoryUrl: string | null;
   version: number;
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +23,8 @@ export class Board extends BaseEntity {
   readonly name: string;
   readonly slug: string;
   readonly description: string;
+  readonly visibility: BoardVisibility;
+  readonly githubRepositoryUrl: string | null;
   readonly version: number;
 
   constructor(state: BoardState) {
@@ -28,12 +33,20 @@ export class Board extends BaseEntity {
     this.name = state.name;
     this.slug = state.slug;
     this.description = state.description;
+    this.visibility = state.visibility;
+    this.githubRepositoryUrl = state.githubRepositoryUrl;
     this.version = state.version;
   }
 
   static create(
     ownerId: string,
-    metadata: { name: string; slug: string; description: string },
+    metadata: {
+      name: string;
+      slug: string;
+      description: string;
+      visibility?: BoardVisibility;
+      githubRepositoryUrl?: string | null;
+    },
     now = new Date(),
   ): Board {
     if (
@@ -49,6 +62,8 @@ export class Board extends BaseEntity {
       name: metadata.name.trim(),
       slug: metadata.slug,
       description: metadata.description,
+      visibility: metadata.visibility ?? 'PUBLIC',
+      githubRepositoryUrl: metadata.githubRepositoryUrl ?? null,
       version: 1,
       createdAt: now,
       updatedAt: now,
@@ -57,7 +72,12 @@ export class Board extends BaseEntity {
   }
 
   withMetadata(
-    metadata: Partial<Pick<BoardState, 'name' | 'slug' | 'description'>>,
+    metadata: Partial<
+      Pick<
+        BoardState,
+        'name' | 'slug' | 'description' | 'visibility' | 'githubRepositoryUrl'
+      >
+    >,
     now = new Date(),
   ): Board {
     if (
@@ -74,6 +94,9 @@ export class Board extends BaseEntity {
       name: metadata.name ?? this.name,
       slug: metadata.slug ?? this.slug,
       description: metadata.description ?? this.description,
+      visibility: metadata.visibility ?? this.visibility,
+      githubRepositoryUrl:
+        metadata.githubRepositoryUrl ?? this.githubRepositoryUrl,
       version: this.version + 1,
       createdAt: this.createdAt,
       updatedAt: now,
@@ -88,6 +111,8 @@ export class Board extends BaseEntity {
       name: this.name,
       slug: this.slug,
       description: this.description,
+      visibility: this.visibility,
+      githubRepositoryUrl: this.githubRepositoryUrl,
       version: this.version + 1,
       createdAt: this.createdAt,
       updatedAt: now,

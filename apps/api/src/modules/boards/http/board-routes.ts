@@ -31,6 +31,8 @@ function present(board: Board): BoardResponse {
     name: board.name,
     slug: board.slug,
     description: board.description,
+    visibility: board.visibility,
+    githubRepositoryUrl: board.githubRepositoryUrl,
     createdAt: board.createdAt.toISOString(),
     updatedAt: board.updatedAt.toISOString(),
     version: board.version,

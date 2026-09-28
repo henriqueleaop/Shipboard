@@ -192,6 +192,8 @@ describe('feedback forms', () => {
           name: 'Northstar',
           slug: 'northstar',
           description: 'Ideas',
+          visibility: 'PUBLIC',
+          githubRepositoryUrl: null,
           version: 1,
           createdAt: idea.createdAt,
           updatedAt: idea.updatedAt,

@@ -27,7 +27,13 @@ export default function NewBoardPage() {
   const attempt = useRef<{ body: string; key: string } | null>(null);
   const form = useForm<CreateBoardRequest>({
     resolver: zodResolver(createBoardRequestSchema),
-    defaultValues: { name: '', slug: '', description: '' },
+    defaultValues: {
+      name: '',
+      slug: '',
+      description: '',
+      visibility: 'PUBLIC',
+      githubRepositoryUrl: null,
+    },
   });
   const create = useMutation({
     mutationFn: async (values: CreateBoardRequest) => {

@@ -25,6 +25,11 @@ function mapBoard(row: Record<string, unknown>): Board {
     name: String(row.name),
     slug: String(row.slug),
     description: String(row.description),
+    visibility: String(row.visibility) as Board['visibility'],
+    githubRepositoryUrl:
+      row.github_repository_url == null
+        ? null
+        : String(row.github_repository_url),
     version: Number(row.version),
     createdAt: date(row.created_at),
     updatedAt: date(row.updated_at),
@@ -39,6 +44,8 @@ function snapshot(board: Board) {
     name: board.name,
     slug: board.slug,
     description: board.description,
+    visibility: board.visibility,
+    github_repository_url: board.githubRepositoryUrl,
     version: board.version,
     created_at: board.createdAt.toISOString(),
     updated_at: board.updatedAt.toISOString(),
@@ -67,8 +74,8 @@ class DrizzleBoardStore implements BoardStore {
   async insert(board: Board): Promise<void> {
     try {
       await this.executor.execute(sql`
-        INSERT INTO boards (id, owner_id, name, slug, description, version, created_at, updated_at, deleted_at)
-        VALUES (${board.id}, ${board.ownerId}, ${board.name}, ${board.slug}, ${board.description}, ${board.version}, ${board.createdAt}, ${board.updatedAt}, NULL)
+        INSERT INTO boards (id, owner_id, name, slug, description, visibility, github_repository_url, version, created_at, updated_at, deleted_at)
+        VALUES (${board.id}, ${board.ownerId}, ${board.name}, ${board.slug}, ${board.description}, ${board.visibility}, ${board.githubRepositoryUrl}, ${board.version}, ${board.createdAt}, ${board.updatedAt}, NULL)
       `);
     } catch (error) {
       translateUnique(error);
@@ -77,7 +84,7 @@ class DrizzleBoardStore implements BoardStore {
 
   async find(id: string): Promise<Board | null> {
     const result = await this.executor.execute(sql`
-      SELECT id, owner_id, name, slug, description, version, created_at, updated_at, deleted_at
+      SELECT id, owner_id, name, slug, description, visibility, github_repository_url, version, created_at, updated_at, deleted_at
       FROM boards WHERE id = ${id}::uuid AND deleted_at IS NULL
     `);
     return result.rows[0] ? mapBoard(result.rows[0]) : null;
@@ -85,7 +92,7 @@ class DrizzleBoardStore implements BoardStore {
 
   async findBySlug(slug: string): Promise<Board | null> {
     const result = await this.executor.execute(sql`
-      SELECT id, owner_id, name, slug, description, version, created_at, updated_at, deleted_at
+      SELECT id, owner_id, name, slug, description, visibility, github_repository_url, version, created_at, updated_at, deleted_at
       FROM boards WHERE slug = ${slug} AND deleted_at IS NULL
     `);
     return result.rows[0] ? mapBoard(result.rows[0]) : null;
@@ -97,7 +104,7 @@ class DrizzleBoardStore implements BoardStore {
     cursor?: BoardCursor,
   ): Promise<Board[]> {
     const result = await this.executor.execute(sql`
-      SELECT id, owner_id, name, slug, description, version, created_at, updated_at, deleted_at
+      SELECT id, owner_id, name, slug, description, visibility, github_repository_url, version, created_at, updated_at, deleted_at
       FROM boards
       WHERE owner_id = ${ownerId}::uuid AND deleted_at IS NULL
         ${cursor ? sql`AND (created_at, id) < (${cursor.createdAt}, ${cursor.id}::uuid)` : sql``}
@@ -110,7 +117,8 @@ class DrizzleBoardStore implements BoardStore {
     try {
       const result = await this.executor.execute(sql`
         UPDATE boards SET name = ${board.name}, slug = ${board.slug},
-          description = ${board.description}, updated_at = ${board.updatedAt},
+          description = ${board.description}, visibility = ${board.visibility},
+          github_repository_url = ${board.githubRepositoryUrl}, updated_at = ${board.updatedAt},
           version = version + 1
         WHERE id = ${board.id}::uuid AND owner_id = ${board.ownerId}::uuid
           AND version = ${expectedVersion} AND deleted_at IS NULL

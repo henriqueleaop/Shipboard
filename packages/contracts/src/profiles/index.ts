@@ -24,7 +24,7 @@ export const usernameSchema = z
     message: 'This username is reserved for Shipboard.',
   });
 
-export const githubRepositoryUrlSchema = z.string().url().refine(
+export const githubRepositoryUrlSchema = z.string().max(256).url().refine(
   (value) => {
     const url = new URL(value);
     return (

@@ -13,7 +13,13 @@ import type { BoardCursor, BoardUnitOfWork } from './ports/board-store.js';
 function boardHash(metadata: CreateBoardRequest): string {
   return createHash('sha256')
     .update(
-      JSON.stringify([metadata.name, metadata.slug, metadata.description]),
+      JSON.stringify([
+        metadata.name,
+        metadata.slug,
+        metadata.description,
+        metadata.visibility,
+        metadata.githubRepositoryUrl,
+      ]),
     )
     .digest('hex');
 }

@@ -29,7 +29,7 @@ Runnable monorepo with account, board and public feedback workflows, PostgreSQL 
 - Vote persistence with active uniqueness, counted public projections, authenticated PUT/DELETE and batched personal state; public voting and owner review screens.
 - Responsive Tailwind-backed visual redesign, reusable UI/feedback components, and explicit validation/guidance for existing and new fields.
 - Shared backend/frontend field limits with focused-only character counters: email 254, password 128, board name 100, slug 64, board description 500, suggestion title 120, and suggestion description 2,000.
-- Sprint 006 foundation: shared username, board-visibility and GitHub-repository contracts; migration backfills non-email-derived usernames for existing accounts, adds board visibility/repository metadata, and scopes board slug uniqueness to its owner. Public profile and canonical routes are not implemented yet.
+- Sprint 006 foundation: shared username, board-visibility and GitHub-repository contracts; migration backfills non-email-derived usernames for existing accounts, adds board visibility/repository metadata, and scopes board slug uniqueness to its owner. Owners can set visibility and a public GitHub repository URL through the board form; public profile, canonical routes and public privacy enforcement are not implemented yet.
 - Optional GitHub provider configuration and social-start/callback bridge through Better Auth. HTTP and HTTPS browser fixtures prove persisted provider sessions, repeat login and logout; live GitHub authorization has not been verified.
 
 ## Infrastructure

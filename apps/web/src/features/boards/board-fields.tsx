@@ -31,6 +31,7 @@ export function BoardFields({
   const slug = form.watch('slug');
   const name = form.watch('name');
   const description = form.watch('description');
+  const githubRepositoryUrl = form.watch('githubRepositoryUrl') ?? '';
   const suggestion = suggestSlug(slug);
   const slugError = form.formState.errors.slug;
   return (
@@ -124,6 +125,45 @@ export function BoardFields({
       {form.formState.errors.description && (
         <p id="board-description-error" role="alert" className="field-error">
           {t('Check the form fields.')}
+        </p>
+      )}
+      <label htmlFor="board-visibility">{t('Visibility')}</label>
+      <select id="board-visibility" {...form.register('visibility')}>
+        <option value="PUBLIC">{t('Public and listed on your profile')}</option>
+        <option value="UNLISTED">{t('Public with the link only')}</option>
+        <option value="PRIVATE">{t('Private to you')}</option>
+      </select>
+      <label htmlFor="board-github-repository">
+        {t('Public GitHub repository')}
+      </label>
+      <Input
+        id="board-github-repository"
+        type="url"
+        inputMode="url"
+        maxLength={boardFieldLimits.githubRepositoryUrl}
+        placeholder="https://github.com/owner/repository"
+        aria-invalid={Boolean(form.formState.errors.githubRepositoryUrl)}
+        aria-describedby={
+          form.formState.errors.githubRepositoryUrl
+            ? 'board-github-repository-counter board-github-repository-error'
+            : 'board-github-repository-counter'
+        }
+        {...form.register('githubRepositoryUrl', {
+          setValueAs: (value) => value || null,
+        })}
+      />
+      <CharacterCounter
+        id="board-github-repository-counter"
+        value={githubRepositoryUrl}
+        limit={boardFieldLimits.githubRepositoryUrl}
+      />
+      {form.formState.errors.githubRepositoryUrl && (
+        <p
+          id="board-github-repository-error"
+          role="alert"
+          className="field-error"
+        >
+          {t('Enter the canonical URL of a public GitHub repository.')}
         </p>
       )}
     </>

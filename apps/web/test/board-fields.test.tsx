@@ -8,7 +8,13 @@ import { BoardFields } from '../src/features/boards/board-fields';
 
 function Example() {
   const form = useForm<CreateBoardRequest>({
-    defaultValues: { name: '', slug: '', description: '' },
+    defaultValues: {
+      name: '',
+      slug: '',
+      description: '',
+      visibility: 'PUBLIC',
+      githubRepositoryUrl: null,
+    },
   });
   return <BoardFields form={form} />;
 }
@@ -36,5 +42,14 @@ describe('board fields', () => {
       screen.getByRole('button', { name: 'Use suggestion: my-board' }),
     );
     expect(slug).toHaveValue('my-board');
+  });
+
+  it('offers all board visibility options and a bounded GitHub repository link', () => {
+    render(<Example />);
+    expect(screen.getByLabelText('Visibility')).toHaveValue('PUBLIC');
+    expect(screen.getByLabelText('Public GitHub repository')).toHaveAttribute(
+      'maxlength',
+      '256',
+    );
   });
 });
