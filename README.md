@@ -1,6 +1,6 @@
 # Shipboard
 
-Shipboard is a product-feedback board. Owners create public boards, review ideas and move them through a visible roadmap. Visitors can read ideas; signed-in people can suggest and vote. The Next.js web app and Fastify API use PostgreSQL 18, explicit Drizzle migrations, and production container images.
+Shipboard is a product-feedback board. Owners create public boards, review suggestions and move them through a visible roadmap. Visitors can read suggestions; signed-in people can submit and vote. The Next.js web app and Fastify API use PostgreSQL 18, explicit Drizzle migrations, and production container images.
 
 ![Public board with suggestions, status and voting](docs/screenshots/sprint-005-public-board.png)
 

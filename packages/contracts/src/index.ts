@@ -9,6 +9,7 @@ export {
   type UnavailableHealthResponse,
 } from './health/ready.js';
 export {
+  authFieldLimits,
   signUpRequestSchema,
   signInRequestSchema,
   currentUserSchema,
@@ -21,6 +22,7 @@ export {
   type SignInRequest,
 } from './auth/index.js';
 export {
+  boardFieldLimits,
   boardSlugSchema,
   createBoardRequestSchema,
   updateBoardRequestSchema,
@@ -37,6 +39,7 @@ export {
   reservedBoardSlugs,
 } from './boards/reserved-root-segments.js';
 export {
+  suggestionFieldLimits,
   suggestionStatusSchema,
   suggestionSortSchema,
   publicBoardResponseSchema,

@@ -28,6 +28,7 @@ Runnable monorepo with account, board and public feedback workflows, PostgreSQL 
 - Public board/list/detail API and pages; authenticated suggestion creation with transactional idempotency; bounded sort/filter/cursor queries and owner status changes with ETag preconditions.
 - Vote persistence with active uniqueness, counted public projections, authenticated PUT/DELETE and batched personal state; public voting and owner review screens.
 - Responsive Tailwind-backed visual redesign, reusable UI/feedback components, and explicit validation/guidance for existing and new fields.
+- Shared backend/frontend field limits with focused-only character counters: email 254, password 128, board name 100, slug 64, board description 500, suggestion title 120, and suggestion description 2,000.
 - Optional GitHub provider configuration and social-start/callback bridge through Better Auth. HTTP and HTTPS browser fixtures prove persisted provider sessions, repeat login and logout; live GitHub authorization has not been verified.
 
 ## Infrastructure
@@ -44,7 +45,7 @@ PostgreSQL 18 has the baseline plus versioned auth, board/idempotency and feedba
 
 ## Validation Status
 
-Sprint 005 local formatting, lint, typecheck, unit, production build, PostgreSQL integration, HTTPS Playwright, both image builds, individual image smokes, and full Compose smoke have passed during implementation. A live GitHub OAuth app and Sprint 005 Linux PR CI have not been verified. The last web image predates a small auth error-message change and requires rebuilding for final image evidence.
+Sprint 005 local formatting, lint, typecheck, contracts/web/API unit tests, production build, PostgreSQL integration, HTTPS Playwright, both image builds, individual image smokes, and full Compose smoke have passed during implementation. The focused-counter update passed lint, typecheck, contracts/web/API unit tests; its PostgreSQL integration suite could not start here because no container runtime is available. A live GitHub OAuth app and Sprint 005 Linux PR CI have not been verified. The last web image predates the latest interface changes and requires rebuilding for final image evidence.
 
 ## Known Issues / Technical Debt
 

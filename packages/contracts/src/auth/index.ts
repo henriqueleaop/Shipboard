@@ -1,10 +1,12 @@
 import { z } from 'zod';
 
+export const authFieldLimits = { email: 254, password: 128 } as const;
+
 // Registration only: existing credentials remain valid for sign-in.
 export const registrationPasswordSchema = z
   .string()
   .min(12)
-  .max(128)
+  .max(authFieldLimits.password)
   .refine(
     (value) => {
       const compact = value.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
@@ -27,12 +29,12 @@ export const registrationPasswordSchema = z
   );
 
 export const signUpRequestSchema = z.strictObject({
-  email: z.email(),
+  email: z.email().max(authFieldLimits.email),
   password: registrationPasswordSchema,
 });
 
 export const signInRequestSchema = z.strictObject({
-  email: z.email(),
+  email: z.email().max(authFieldLimits.email),
   password: z.string().min(1),
 });
 

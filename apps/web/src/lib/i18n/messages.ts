@@ -223,8 +223,50 @@ export const portuguese = {
 export type Message = keyof typeof portuguese;
 export type Locale = 'pt-BR' | 'en';
 export type Theme = 'light' | 'dark' | 'system';
+const english: Partial<Record<Message, string>> = {
+  'A clearer route from idea to shipped':
+    'A clearer route from suggestions to shipped features.',
+  'Make room for better ideas.': 'Make room for better suggestions.',
+  'Ideas in motion': 'Suggestions in motion',
+  'A good idea deserves to be found.':
+    'A good suggestion deserves to be found.',
+  'Listen to ideas, choose a direction and show what ships.':
+    'Listen to suggestions, choose a direction and show what ships.',
+  'Your space for better ideas': 'Your space for product feedback',
+  'Describe your idea.': 'Describe your suggestion.',
+  'Edit the details of this board, review ideas, or open the public page.':
+    'Edit the details of this board, review suggestions, or open the public page.',
+  'Review ideas': 'Review suggestions',
+  'This idea changed in another tab. Reload the list before saving.':
+    'This suggestion changed in another tab. Reload the list before saving.',
+  'Could not update this idea.': 'Could not update this suggestion.',
+  'Could not reload this idea. Try again.':
+    'Could not reload this suggestion. Try again.',
+  'Loading ideas\u2026': 'Loading suggestions\u2026',
+  'Could not load ideas.': 'Could not load suggestions.',
+  'No ideas in this view': 'No suggestions in this view',
+  'ideas in view': 'suggestions in view',
+  'Ideas & progress': 'Suggestions & progress',
+  'No ideas here yet': 'No suggestions here yet',
+  'Try another status, or share a new idea.':
+    'Try another status, or share a new suggestion.',
+  'Load more ideas': 'Load more suggestions',
+  'Ideas move from review to the roadmap, into progress, and finally to shipped.':
+    'Suggestions move from review to the roadmap, into progress, and finally to shipped.',
+  'Idea unavailable': 'Suggestion unavailable',
+  'This idea could not be found.': 'This suggestion could not be found.',
+  'We could not load this idea.': 'We could not load this suggestion.',
+  'Loading idea\u2026': 'Loading suggestion\u2026',
+  'Community idea \u00b7': 'Community suggestion \u00b7',
+  'Bring an idea aboard': 'Have a suggestion?',
+  'Share an idea': 'Share a suggestion',
+  'A clear title': 'Suggestion title',
+  'Could not publish your idea. Your text is still here; try again.':
+    'Could not publish your suggestion. Your text is still here; try again.',
+  'Publish idea \u2192': 'Publish suggestion \u2192',
+};
 export function translate(locale: Locale, message: Message): string {
-  if (locale !== 'pt-BR') return message;
+  if (locale !== 'pt-BR') return english[message] ?? message;
   return portuguese[message]
     .replace(/\bIdeias\b/g, 'Sugestões')
     .replace(/\bideias\b/g, 'sugestões')

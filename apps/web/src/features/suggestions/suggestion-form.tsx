@@ -5,6 +5,7 @@ import { useLocale } from '../../lib/i18n/provider';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createSuggestionRequestSchema,
+  suggestionFieldLimits,
   type CreateSuggestionRequest,
 } from '@shipboard/contracts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import { useForm } from 'react-hook-form';
 import { useApiUrl } from '../../app/providers';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
+import { CharacterCounter } from '../../components/ui/character-counter';
 import { Textarea } from '../../components/ui/textarea';
 import { ApiError } from '../../lib/api/client';
 import { createSuggestionRequest } from './api';
@@ -38,6 +40,8 @@ export function SuggestionForm({
     resolver: zodResolver(createSuggestionRequestSchema),
     defaultValues: { title: '', description: '' },
   });
+  const title = form.watch('title');
+  const description = form.watch('description');
   const submit = useMutation({
     mutationFn: (body: CreateSuggestionRequest) => {
       const serialized = JSON.stringify(body);
@@ -61,46 +65,62 @@ export function SuggestionForm({
   if (!signedIn)
     return (
       <div className="form-panel">
-        <h2>{t("Bring an idea aboard")}</h2>
-        <p>{t("Sign in to share what you would like to see next.")}</p>
+        <h2>{t('Bring an idea aboard')}</h2>
+        <p>{t('Sign in to share what you would like to see next.')}</p>
         <Link
           className="button primary"
           href={`/login?returnTo=${encodeURIComponent(`/${slug}`)}`}
-        >{t("Sign in to suggest")}{' '}</Link>
+        >
+          {t('Sign in to suggest')}{' '}
+        </Link>
       </div>
     );
   return (
     <div className="form-panel">
-      <p className="eyebrow">{t("The next thing")}</p>
-      <h2>{t("Share an idea")}</h2>
+      <p className="eyebrow">{t('The next thing')}</p>
+      <h2>{t('Share an idea')}</h2>
       <form onSubmit={form.handleSubmit((values) => submit.mutate(values))}>
-        <label htmlFor="suggestion-title">{t("A clear title")}</label>
+        <label htmlFor="suggestion-title">{t('A clear title')}</label>
         <Input
           id="suggestion-title"
-          placeholder={t("What should we build next?")}
+          maxLength={suggestionFieldLimits.title}
+          placeholder={t('What should we build next?')}
           aria-invalid={Boolean(form.formState.errors.title)}
           aria-describedby={
-            form.formState.errors.title ? 'suggestion-title-error' : undefined
+            form.formState.errors.title
+              ? 'suggestion-title-counter suggestion-title-error'
+              : 'suggestion-title-counter'
           }
           {...form.register('title')}
         />
+        <CharacterCounter
+          id="suggestion-title-counter"
+          value={title}
+          limit={suggestionFieldLimits.title}
+        />
         {form.formState.errors.title && (
           <p id="suggestion-title-error" role="alert" className="field-error">
-            {form.formState.errors.title.message}
+            {t('Enter a title with at least 3 characters.')}
           </p>
         )}
-        <label htmlFor="suggestion-description">{t("Why it matters")}</label>
+        <label htmlFor="suggestion-description">{t('Why it matters')}</label>
         <Textarea
           id="suggestion-description"
           rows={5}
-          placeholder={t("Tell us how this would help your work.")}
+          maxLength={suggestionFieldLimits.description}
+          placeholder={t('Tell us how this would help your work.')}
           aria-invalid={Boolean(form.formState.errors.description)}
           aria-describedby={
             form.formState.errors.description
-              ? 'suggestion-description-error'
-              : undefined
+              ? 'suggestion-description-counter suggestion-description-error'
+              : 'suggestion-description-counter'
           }
           {...form.register('description')}
+        />
+        <CharacterCounter
+          id="suggestion-description-counter"
+          value={description}
+          limit={suggestionFieldLimits.description}
         />
         {form.formState.errors.description && (
           <p
@@ -108,14 +128,16 @@ export function SuggestionForm({
             role="alert"
             className="field-error"
           >
-            {form.formState.errors.description.message}
+            {t('Describe your idea.')}
           </p>
         )}
         {submit.isError && (
           <p role="alert" className="notice error">
             {submit.error instanceof ApiError && submit.error.status === 401
-              ? t("Your session expired. Your text is still here.")
-              : t("Could not publish your idea. Your text is still here; try again.")}
+              ? t('Your session expired. Your text is still here.')
+              : t(
+                  'Could not publish your idea. Your text is still here; try again.',
+                )}
             {submit.error instanceof ApiError &&
               submit.error.status === 401 && (
                 <>
@@ -124,12 +146,16 @@ export function SuggestionForm({
                     href={`/login?returnTo=${encodeURIComponent(`/${slug}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                  >{t("Sign in in a new tab")}{' '}</Link>{t(", then return to publish.")}{' '}</>
+                  >
+                    {t('Sign in in a new tab')}{' '}
+                  </Link>
+                  {t(', then return to publish.')}{' '}
+                </>
               )}
           </p>
         )}
         <Button type="submit" tone="primary" disabled={submit.isPending}>
-          {submit.isPending ? t("Publishing…") : t("Publish idea →")}
+          {submit.isPending ? t('Publishing…') : t('Publish idea →')}
         </Button>
       </form>
     </div>

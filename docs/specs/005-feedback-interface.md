@@ -26,3 +26,7 @@ is explained without silently renaming it. Suggestion title and description
 use shared trimmed validation. Sort and status controls contain only supported
 values and use accessible labels. All fields preserve paste, autofill, undo,
 middle edits and IME composition, with associated errors and visible progress.
+Each editable text field exposes a `typed / maximum` counter only while that
+field has focus. The maximum is exported by the shared API contract: email
+254, password and confirmation 128, board name 100, slug 64, board description
+500, suggestion title 120, and suggestion description 2,000 characters.

@@ -14,6 +14,16 @@ function Example() {
 }
 
 describe('board fields', () => {
+  it('shows the backend-aligned counter only for the focused field', () => {
+    render(<Example />);
+    const name = screen.getByLabelText('Board name');
+    const counter = screen.getByText('0 / 100');
+    expect(name).toHaveAttribute('maxlength', '100');
+    fireEvent.focus(name);
+    fireEvent.change(name, { target: { value: 'Northstar' } });
+    expect(counter).toHaveTextContent('9 / 100');
+  });
+
   it('keeps an entered slug until the user chooses its suggested form', () => {
     render(<Example />);
     const slug = screen.getByLabelText('Public slug');

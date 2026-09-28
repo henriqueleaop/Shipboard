@@ -73,6 +73,14 @@ describe('authentication form', () => {
         <AuthForm mode="register" />
       </Providers>,
     );
+    const email = screen.getByLabelText('Email');
+    expect(email).toHaveAttribute('maxlength', '254');
+    fireEvent.focus(email);
+    expect(screen.getByText('0 / 254')).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toHaveAttribute(
+      'maxlength',
+      '128',
+    );
     fireEvent.change(screen.getByLabelText('Email'), {
       target: { value: 'bad' },
     });

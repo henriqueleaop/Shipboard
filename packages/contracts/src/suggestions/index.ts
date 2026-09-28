@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+export const suggestionFieldLimits = {
+  title: 120,
+  description: 2_000,
+} as const;
+
 export const suggestionStatusSchema = z.enum([
   'UNDER_REVIEW',
   'PLANNED',
@@ -18,8 +23,8 @@ export const publicBoardResponseSchema = z.strictObject({
 });
 
 export const createSuggestionRequestSchema = z.strictObject({
-  title: z.string().trim().min(3),
-  description: z.string().trim().min(1),
+  title: z.string().trim().min(3).max(suggestionFieldLimits.title),
+  description: z.string().trim().min(1).max(suggestionFieldLimits.description),
 });
 
 export const suggestionResponseSchema = z.strictObject({

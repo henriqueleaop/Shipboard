@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   boardResponseSchema,
   createBoardRequestSchema,
+  createSuggestionRequestSchema,
   currentUserSchema,
   localReturnPathSchema,
   githubStartRequestSchema,
@@ -38,6 +39,28 @@ describe('product HTTP contracts', () => {
     expect(
       updateBoardRequestSchema.safeParse({ slug: 'new-slug' }).success,
     ).toBe(true);
+  });
+
+  it('enforces the limits shown in the web form', () => {
+    expect(
+      createBoardRequestSchema.safeParse({
+        name: 'n'.repeat(101),
+        slug: 'valid-board',
+        description: '',
+      }).success,
+    ).toBe(false);
+    expect(
+      createSuggestionRequestSchema.safeParse({
+        title: 't'.repeat(121),
+        description: 'A useful suggestion.',
+      }).success,
+    ).toBe(false);
+    expect(
+      createSuggestionRequestSchema.safeParse({
+        title: 'Useful suggestion',
+        description: 'd'.repeat(2_001),
+      }).success,
+    ).toBe(false);
   });
 
   it('excludes sensitive authentication data', () => {

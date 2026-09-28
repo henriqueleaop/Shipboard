@@ -3,6 +3,7 @@
 import { useLocale } from '../../lib/i18n/provider';
 
 import {
+  authFieldLimits,
   signInRequestSchema,
   signUpRequestSchema,
   localReturnPathSchema,
@@ -19,6 +20,7 @@ import { z } from 'zod';
 import { useApiUrl } from '../../app/providers';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
+import { CharacterCounter } from '../../components/ui/character-counter';
 import { PasswordInput } from '../../components/ui/password-input';
 import { authProviders, signIn, signUp, startGithub } from './api';
 import { ApiError } from '../../lib/api/client';
@@ -77,6 +79,9 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' }) {
     resolver: zodResolver(schema),
     defaultValues: { email: '', password: '', confirmation: '' },
   });
+  const email = form.watch('email');
+  const password = form.watch('password');
+  const confirmation = form.watch('confirmation');
   const action = useMutation({
     mutationFn: (input: SignUpRequest) =>
       mode === 'register' ? signUp(apiUrl, input) : signIn(apiUrl, input),
@@ -121,15 +126,23 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' }) {
           <Input
             id="email"
             type="email"
+            maxLength={authFieldLimits.email}
             inputMode="email"
             autoComplete="email"
             autoCapitalize="none"
             spellCheck={false}
             aria-invalid={Boolean(form.formState.errors.email)}
             aria-describedby={
-              form.formState.errors.email ? 'email-error' : undefined
+              form.formState.errors.email
+                ? 'email-counter email-error'
+                : 'email-counter'
             }
             {...form.register('email')}
+          />
+          <CharacterCounter
+            id="email-counter"
+            value={email}
+            limit={authFieldLimits.email}
           />
           {form.formState.errors.email && (
             <p id="email-error" role="alert" className="field-error">
@@ -139,18 +152,24 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' }) {
           <label htmlFor="password">{t('Password')}</label>
           <PasswordInput
             id="password"
+            maxLength={authFieldLimits.password}
             autoComplete={
               mode === 'register' ? 'new-password' : 'current-password'
             }
             aria-invalid={Boolean(form.formState.errors.password)}
             aria-describedby={
               form.formState.errors.password
-                ? 'password-error password-hint'
+                ? 'password-counter password-error password-hint'
                 : mode === 'register'
-                  ? 'password-hint'
-                  : undefined
+                  ? 'password-counter password-hint'
+                  : 'password-counter'
             }
             {...form.register('password')}
+          />
+          <CharacterCounter
+            id="password-counter"
+            value={password}
+            limit={authFieldLimits.password}
           />
           {mode === 'register' && (
             <p id="password-hint" className="hint">
@@ -174,14 +193,20 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' }) {
               <PasswordInput
                 id="confirmation"
                 confirmation
+                maxLength={authFieldLimits.password}
                 autoComplete="new-password"
                 aria-invalid={Boolean(form.formState.errors.confirmation)}
                 aria-describedby={
                   form.formState.errors.confirmation
-                    ? 'confirmation-error'
-                    : undefined
+                    ? 'confirmation-counter confirmation-error'
+                    : 'confirmation-counter'
                 }
                 {...form.register('confirmation')}
+              />
+              <CharacterCounter
+                id="confirmation-counter"
+                value={confirmation}
+                limit={authFieldLimits.password}
               />
               {form.formState.errors.confirmation && (
                 <p id="confirmation-error" role="alert" className="field-error">

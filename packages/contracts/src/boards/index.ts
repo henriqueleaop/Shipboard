@@ -1,17 +1,24 @@
 import { z } from 'zod';
 import { isReservedBoardSlug } from './reserved-root-segments.js';
 
+export const boardFieldLimits = {
+  name: 100,
+  slug: 64,
+  description: 500,
+} as const;
+
 export const boardSlugSchema = z
   .string()
+  .max(boardFieldLimits.slug)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .refine((value) => !isReservedBoardSlug(value), {
     message: 'This slug is reserved for Shipboard.',
   });
 
 export const createBoardRequestSchema = z.strictObject({
-  name: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(boardFieldLimits.name),
   slug: boardSlugSchema,
-  description: z.string(),
+  description: z.string().max(boardFieldLimits.description),
 });
 
 export const updateBoardRequestSchema = createBoardRequestSchema

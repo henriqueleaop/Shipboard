@@ -457,6 +457,19 @@ textarea {
   color: var(--muted);
   font-size: 0.8rem;
 }
+.character-counter {
+  display: none;
+  align-self: end;
+  margin: -0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+form input:focus + .character-counter,
+form textarea:focus + .character-counter,
+form .password-field:focus-within + .character-counter {
+  display: block;
+}
 .field-error {
   margin: 0.1rem 0;
   color: var(--danger);

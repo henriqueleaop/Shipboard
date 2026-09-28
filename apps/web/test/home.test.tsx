@@ -8,7 +8,7 @@ describe('home page', () => {
   it('offers the account setup journey', () => {
     render(<HomePage />);
     expect(
-      screen.getByRole('heading', { name: 'Make room for better ideas.' }),
+      screen.getByRole('heading', { name: 'Make room for better suggestions.' }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: 'Start a feedback board' }),

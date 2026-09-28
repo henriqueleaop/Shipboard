@@ -139,10 +139,13 @@ describe('feedback forms', () => {
         <SuggestionForm boardId={boardId} slug="northstar" signedIn />
       </Providers>,
     );
-    fireEvent.click(screen.getByRole('button', { name: /Publish idea/ }));
-    expect(await screen.findAllByRole('alert')).toHaveLength(2);
-    const title = screen.getByLabelText('A clear title');
+    const title = screen.getByLabelText('Suggestion title');
     const description = screen.getByLabelText('Why it matters');
+    expect(title).toHaveAttribute('maxlength', '120');
+    expect(description).toHaveAttribute('maxlength', '2000');
+    expect(screen.getByText('0 / 120')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Publish suggestion/ }));
+    expect(await screen.findAllByRole('alert')).toHaveLength(2);
     fireEvent.compositionStart(title);
     fireEvent.change(title, { target: { value: '  日本語 / café 🎯  ' } });
     fireEvent.compositionEnd(title);
@@ -152,16 +155,16 @@ describe('feedback forms', () => {
           '  Preserve punctuation, aliases + and newlines.\nSecond line.  ',
       },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Publish idea/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Publish suggestion/ }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Your text is still here',
     );
     expect(title).toHaveValue('  日本語 / café 🎯  ');
-    fireEvent.click(screen.getByRole('button', { name: /Publish idea/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Publish suggestion/ }));
     await waitFor(() => expect(attempts).toHaveLength(2));
     await waitFor(() =>
       expect(
-        screen.getByRole('button', { name: /Publish idea/ }),
+        screen.getByRole('button', { name: /Publish suggestion/ }),
       ).toBeEnabled(),
     );
     expect(attempts[0]?.key).toMatch(/^[0-9a-f-]{36}$/);
@@ -172,7 +175,7 @@ describe('feedback forms', () => {
         'Preserve punctuation, aliases + and newlines.\nSecond line.',
     });
     fireEvent.change(title, { target: { value: 'Revised 日本語 idea' } });
-    fireEvent.click(screen.getByRole('button', { name: /Publish idea/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Publish suggestion/ }));
     await waitFor(() => expect(attempts).toHaveLength(3));
     expect(attempts[2]?.key).not.toBe(attempts[0]?.key);
   });
