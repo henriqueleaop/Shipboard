@@ -45,23 +45,23 @@ export function SiteHeader() {
           </span>
           Shipboard
         </Link>
-        <nav aria-label={t('Main navigation')}>
-          {user.data ? (
-            <>
-              <Link href="/boards">{t('My boards')}</Link>
-              <button type="button" onClick={logout} disabled={pending}>
-                {pending ? t('Signing out…') : t('Sign out')}
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login">{t('Sign in')}</Link>
-              <Link href="/register">{t('Create account')}</Link>
-            </>
-          )}
-        </nav>
       </div>
       <PreferenceControls />
+      <nav aria-label={t('Main navigation')}>
+        {user.data ? (
+          <>
+            <Link href="/boards">{t('My boards')}</Link>
+            <button type="button" onClick={logout} disabled={pending}>
+              {pending ? t('Signing out…') : t('Sign out')}
+            </button>
+          </>
+        ) : (
+          <>
+            <Link href="/login">{t('Sign in')}</Link>
+            <Link href="/register">{t('Create account')}</Link>
+          </>
+        )}
+      </nav>
       {logoutError && (
         <p role="alert" className="header-error">
           {t('Could not sign out. Try again.')}
