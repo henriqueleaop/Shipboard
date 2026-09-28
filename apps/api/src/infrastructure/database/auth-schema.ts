@@ -6,6 +6,7 @@ import {
   boolean,
   uuid,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
@@ -13,6 +14,8 @@ export const user = pgTable('user', {
     .default(sql`pg_catalog.gen_random_uuid()`)
     .primaryKey(),
   name: text('name').notNull(),
+  username: text('username'),
+  githubUsername: text('github_username'),
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
@@ -23,7 +26,9 @@ export const user = pgTable('user', {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
-});
+}, (table) => [
+  uniqueIndex('user_username_unique').on(table.username),
+]);
 
 export const session = pgTable(
   'session',

@@ -24,13 +24,15 @@ export const boards = pgTable(
     name: text('name').notNull(),
     slug: text('slug').notNull(),
     description: text('description').notNull(),
+    visibility: text('visibility').notNull().default('PUBLIC'),
+    githubRepositoryUrl: text('github_repository_url'),
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
-    uniqueIndex('boards_slug_unique').on(table.slug),
+    uniqueIndex('boards_owner_slug_unique').on(table.ownerId, table.slug),
     index('boards_owner_active_created_idx').on(
       table.ownerId,
       table.deletedAt,
