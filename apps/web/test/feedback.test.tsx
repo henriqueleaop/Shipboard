@@ -42,6 +42,7 @@ const idea = {
   voteCount: 0,
   createdAt: '2026-09-27T12:00:00Z',
   updatedAt: '2026-09-27T12:00:00Z',
+  author: { username: 'first-user' },
 };
 const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -73,6 +74,8 @@ function SwitchAccount() {
         client.setQueryData(['current-user'], {
           id: 'af0cbb50-228b-4925-b71d-bc6b66c28fa8',
           email: 'second@example.test',
+          username: 'second-user',
+          githubProfileUrl: null,
         })
       }
     >
@@ -89,6 +92,16 @@ describe('feedback forms', () => {
         HttpResponse.json({
           id: '53bd7395-0447-43d1-ad85-d700680d5b82',
           email: 'first@example.test',
+          username: 'first-user',
+          githubProfileUrl: null,
+        }),
+      ),
+      http.get(`${base}/api/v1/me`, () =>
+        HttpResponse.json({
+          id: '53bd7395-0447-43d1-ad85-d700680d5b82',
+          email: 'first@example.test',
+          username: 'first-user',
+          githubProfileUrl: null,
         }),
       ),
       http.get(`${base}/api/v1/suggestions/${ideaId}/vote`, () => {
@@ -185,6 +198,14 @@ describe('feedback forms', () => {
     let lists = 0;
     const matches: string[] = [];
     server.use(
+      http.get(`${base}/api/v1/me`, () =>
+        HttpResponse.json({
+          id: '53bd7395-0447-43d1-ad85-d700680d5b82',
+          email: 'first@example.test',
+          username: 'first-user',
+          githubProfileUrl: null,
+        }),
+      ),
       http.get(`${base}/api/v1/boards/${boardId}`, () =>
         HttpResponse.json({
           id: boardId,
@@ -207,7 +228,7 @@ describe('feedback forms', () => {
         });
       }),
       http.get(
-        `${base}/api/v1/public/boards/northstar/suggestions/${ideaId}`,
+        `${base}/api/v1/public/boards/first-user/northstar/suggestions/${ideaId}`,
         () => HttpResponse.json(latest),
       ),
       http.patch(
