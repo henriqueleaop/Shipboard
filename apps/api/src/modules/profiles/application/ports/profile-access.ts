@@ -15,10 +15,20 @@ export interface PublicProfile {
   username: string;
   githubProfileUrl: string | null;
   boards: PublicProfileBoard[];
+  nextCursor: ProfileCursor | null;
+}
+
+export interface ProfileCursor {
+  createdAt: Date;
+  id: string;
 }
 
 export interface ProfileAccess {
   current(userId: string, email: string): Promise<CurrentProfile>;
   updateUsername(userId: string, username: string): Promise<CurrentProfile>;
-  publicByUsername(username: string): Promise<PublicProfile | null>;
+  publicByUsername(
+    username: string,
+    limit: number,
+    cursor?: ProfileCursor,
+  ): Promise<PublicProfile | null>;
 }

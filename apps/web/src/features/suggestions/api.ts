@@ -20,6 +20,14 @@ export async function publicBoard(
   return publicBoardResponseSchema.parse(await response.json());
 }
 
+export async function legacyPublicBoard(baseUrl: string, slug: string) {
+  const response = await requestApi(
+    baseUrl,
+    `/api/v1/public/boards/${encodeURIComponent(slug)}`,
+  );
+  return publicBoardResponseSchema.parse(await response.json());
+}
+
 export async function listSuggestions(
   baseUrl: string,
   board: { username?: string; slug?: string; id?: string },

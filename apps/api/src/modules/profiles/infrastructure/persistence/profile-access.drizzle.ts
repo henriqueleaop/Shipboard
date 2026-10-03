@@ -4,6 +4,7 @@ import { ProfileError } from '../../application/profile-error.js';
 import type {
   CurrentProfile,
   ProfileAccess,
+  ProfileCursor,
   PublicProfile,
 } from '../../application/ports/profile-access.js';
 import type { createDatabase } from '../../../../infrastructure/database/client.js';
@@ -15,6 +16,10 @@ type Executor = {
 function githubProfileUrl(value: unknown): string | null {
   if (typeof value !== 'string' || !/^[A-Za-z0-9-]+$/.test(value)) return null;
   return `https://github.com/${value}`;
+}
+
+function date(value: unknown): Date {
+  return value instanceof Date ? value : new Date(String(value));
 }
 
 function current(row: Record<string, unknown>, email: string): CurrentProfile {
@@ -81,7 +86,11 @@ class DrizzleProfileAccess implements ProfileAccess {
     }
   }
 
-  async publicByUsername(username: string): Promise<PublicProfile | null> {
+  async publicByUsername(
+    username: string,
+    limit: number,
+    cursor?: ProfileCursor,
+  ): Promise<PublicProfile | null> {
     const person = await this.executor.execute(sql`
       SELECT id, username, github_username FROM "user"
       WHERE username = ${username} LIMIT 1
@@ -89,19 +98,26 @@ class DrizzleProfileAccess implements ProfileAccess {
     const row = person.rows[0];
     if (!row || typeof row.username !== 'string') return null;
     const boards = await this.executor.execute(sql`
-      SELECT name, slug, description FROM boards
+      SELECT id, name, slug, description, created_at FROM boards
       WHERE owner_id = ${String(row.id)}::uuid AND visibility = 'PUBLIC'
         AND deleted_at IS NULL
-      ORDER BY created_at DESC, id DESC LIMIT 50
+        ${cursor ? sql`AND (created_at, id) < (${cursor.createdAt}, ${cursor.id}::uuid)` : sql``}
+      ORDER BY created_at DESC, id DESC LIMIT ${limit + 1}
     `);
+    const visible = boards.rows.slice(0, limit);
+    const last = visible.at(-1);
     return {
       username: row.username,
       githubProfileUrl: githubProfileUrl(row.github_username),
-      boards: boards.rows.map((board) => ({
+      boards: visible.map((board) => ({
         name: String(board.name),
         slug: String(board.slug),
         description: String(board.description),
       })),
+      nextCursor:
+        boards.rows.length > limit && last
+          ? { id: String(last.id), createdAt: date(last.created_at) }
+          : null,
     };
   }
 }

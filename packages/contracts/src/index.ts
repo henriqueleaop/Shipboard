@@ -72,6 +72,7 @@ export {
   githubProfileUrlSchema,
   updateProfileRequestSchema,
   publicProfileBoardSchema,
+  publicProfileQuerySchema,
   publicProfileSchema,
   type BoardVisibility,
   type PublicProfile,

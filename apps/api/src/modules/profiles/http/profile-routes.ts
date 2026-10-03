@@ -1,13 +1,42 @@
 import {
   publicProfileSchema,
+  publicProfileQuerySchema,
   updateProfileRequestSchema,
   usernameSchema,
 } from '@shipboard/contracts';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { z } from 'zod';
 
 import type { Principal } from '../../../shared/types/principal.js';
 import { sendProblem } from '../../../shared/http/problem.js';
 import type { ProfileAccess } from '../application/ports/profile-access.js';
+
+const profileCursorSchema = z.tuple([
+  z.string(),
+  z.iso.datetime({ offset: true }),
+  z.uuid(),
+]);
+
+function encodeCursor(
+  username: string,
+  value: { createdAt: Date; id: string },
+) {
+  return Buffer.from(
+    JSON.stringify([username, value.createdAt.toISOString(), value.id]),
+  ).toString('base64url');
+}
+
+function decodeCursor(raw: string, username: string) {
+  try {
+    const value = profileCursorSchema.safeParse(
+      JSON.parse(Buffer.from(raw, 'base64url').toString()),
+    );
+    if (!value.success || value.data[0] !== username) return null;
+    return { createdAt: new Date(value.data[1]), id: value.data[2] };
+  } catch {
+    return null;
+  }
+}
 
 export function registerProfileRoutes(
   app: FastifyInstance,
@@ -26,7 +55,33 @@ export function registerProfileRoutes(
           'Profile not found',
           'The requested profile does not exist.',
         );
-      const profile = await profiles.publicByUsername(request.params.username);
+      const parsed = publicProfileQuerySchema.safeParse(request.query);
+      if (!parsed.success)
+        return sendProblem(
+          request,
+          reply,
+          400,
+          'VALIDATION_FAILED',
+          'Invalid profile query',
+          'Check the page cursor and limit.',
+        );
+      const cursor = parsed.data.cursor
+        ? decodeCursor(parsed.data.cursor, request.params.username)
+        : undefined;
+      if (parsed.data.cursor && !cursor)
+        return sendProblem(
+          request,
+          reply,
+          400,
+          'VALIDATION_FAILED',
+          'Invalid profile query',
+          'Check the page cursor and limit.',
+        );
+      const profile = await profiles.publicByUsername(
+        request.params.username,
+        parsed.data.limit,
+        cursor ?? undefined,
+      );
       if (!profile)
         return sendProblem(
           request,
@@ -36,9 +91,17 @@ export function registerProfileRoutes(
           'Profile not found',
           'The requested profile does not exist.',
         );
-      return reply
-        .header('cache-control', 'public, max-age=60')
-        .send(publicProfileSchema.parse(profile));
+      const { nextCursor, ...publicProfile } = profile;
+      return reply.header('cache-control', 'public, max-age=60').send(
+        publicProfileSchema.parse({
+          ...publicProfile,
+          page: {
+            nextCursor: nextCursor
+              ? encodeCursor(request.params.username, nextCursor)
+              : null,
+          },
+        }),
+      );
     },
   );
 

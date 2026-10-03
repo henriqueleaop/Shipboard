@@ -82,10 +82,16 @@ export const publicProfileBoardSchema = z.strictObject({
   description: z.string(),
 });
 
+export const publicProfileQuerySchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  cursor: z.string().min(1).max(2048).optional(),
+});
+
 export const publicProfileSchema = z.strictObject({
   username: usernameSchema,
   githubProfileUrl: githubProfileUrlSchema.nullable(),
   boards: z.array(publicProfileBoardSchema),
+  page: z.strictObject({ nextCursor: z.string().nullable() }),
 });
 
 export type BoardVisibility = z.infer<typeof boardVisibilitySchema>;

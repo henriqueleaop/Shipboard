@@ -97,16 +97,49 @@ describe('suggestion HTTP journey', () => {
           url: `/api/v1/public/boards/${ownerIdentity.username}/${board.slug}`,
         });
         expect(canonicalBoard.statusCode, canonicalBoard.body).toBe(200);
+        await Promise.all(
+          Array.from({ length: 21 }, (_, index) =>
+            database.db.execute(sql`
+              INSERT INTO boards (id, owner_id, name, slug, description, visibility, version, created_at, updated_at)
+              VALUES (${randomUUID()}::uuid, ${board.ownerId}::uuid,
+                ${`Profile board ${index}`}, ${`profile-board-${index}`}, '', 'PUBLIC', 1,
+                ${new Date(2026, 8, 1, 12, 0, index)}, ${new Date(2026, 8, 1, 12, 0, index)})
+            `),
+          ),
+        );
         const profile = await app.inject({
           method: 'GET',
           url: `/api/v1/public/profiles/${ownerIdentity.username}`,
         });
         expect(profile.statusCode, profile.body).toBe(200);
-        expect(publicProfileSchema.parse(profile.json())).toMatchObject({
+        const firstProfilePage = publicProfileSchema.parse(profile.json());
+        expect(firstProfilePage).toMatchObject({
           username: ownerIdentity.username,
           githubProfileUrl: null,
-          boards: [expect.objectContaining({ slug: board.slug })],
         });
+        expect(firstProfilePage.boards).toHaveLength(20);
+        expect(firstProfilePage.page.nextCursor).toBeTruthy();
+        const nextProfile = await app.inject({
+          method: 'GET',
+          url: `/api/v1/public/profiles/${ownerIdentity.username}?cursor=${firstProfilePage.page.nextCursor}`,
+        });
+        const nextProfilePage = publicProfileSchema.parse(nextProfile.json());
+        expect(nextProfilePage.boards).toHaveLength(2);
+        expect(
+          new Set(
+            [...firstProfilePage.boards, ...nextProfilePage.boards].map(
+              (item) => item.slug,
+            ),
+          ).size,
+        ).toBe(22);
+        expect(
+          (
+            await app.inject({
+              method: 'GET',
+              url: `/api/v1/public/profiles/${ownerIdentity.username}?cursor=invalid`,
+            })
+          ).statusCode,
+        ).toBe(400);
         const privateCreated = await app.inject({
           method: 'POST',
           url: '/api/v1/boards',
