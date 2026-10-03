@@ -15,29 +15,30 @@ import { StatusBadge } from './suggestion-card';
 
 export default function SuggestionDetailPage() {
   const { t, date } = useLocale();
-  const { slug, suggestionId } = useParams<{
+  const { username, slug, suggestionId } = useParams<{
+    username: string;
     slug: string;
     suggestionId: string;
   }>();
   const apiUrl = useApiUrl();
   const board = useQuery({
-    queryKey: ['public-board', slug],
-    queryFn: () => publicBoard(apiUrl, slug),
+    queryKey: ['public-board', username, slug],
+    queryFn: () => publicBoard(apiUrl, username, slug),
   });
   const idea = useQuery({
     queryKey: ['suggestion', suggestionId],
-    queryFn: () => getSuggestion(apiUrl, slug, suggestionId),
+    queryFn: () => getSuggestion(apiUrl, username, slug, suggestionId),
     enabled: Boolean(board.data),
   });
   if (board.isError || idea.isError) {
     const error = board.error ?? idea.error;
     return (
       <main className="page narrow">
-        <p className="eyebrow">{t("Idea unavailable")}</p>
+        <p className="eyebrow">{t('Idea unavailable')}</p>
         <h1>
           {error instanceof ApiError && error.status === 404
-            ? t("This idea could not be found.")
-            : t("We could not load this idea.")}
+            ? t('This idea could not be found.')
+            : t('We could not load this idea.')}
         </h1>
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <button
@@ -47,8 +48,10 @@ export default function SuggestionDetailPage() {
               void board.refetch();
               void idea.refetch();
             }}
-          >{t("Try again")}{' '}</button>
-          <Link href={`/${slug}`}>{t("Back to board")}</Link>
+          >
+            {t('Try again')}{' '}
+          </button>
+          <Link href={`/${username}/${slug}`}>{t('Back to board')}</Link>
         </div>
       </main>
     );
@@ -56,18 +59,18 @@ export default function SuggestionDetailPage() {
   if (board.isPending || idea.isPending)
     return (
       <main className="page">
-        <p>{t("Loading idea…")}</p>
+        <p>{t('Loading idea…')}</p>
       </main>
     );
   const value = idea.data;
   return (
     <main className="page narrow">
-      <Link className="breadcrumb" href={`/${slug}`}>
+      <Link className="breadcrumb" href={`/${username}/${slug}`}>
         ← {board.data.name}
       </Link>
       <article className="idea-detail">
-        <p className="eyebrow">{t("Community idea ·")}{' '}
-          {date(value.createdAt)}
+        <p className="eyebrow">
+          {t('Community idea ·')} {date(value.createdAt)}
         </p>
         <StatusBadge status={value.status} />
         <h1>{value.title}</h1>
@@ -75,11 +78,11 @@ export default function SuggestionDetailPage() {
         <div className="idea-detail-footer">
           <div>
             <strong>{value.voteCount}</strong>{' '}
-            {value.voteCount === 1 ? t("vote") : t("votes")}
+            {value.voteCount === 1 ? t('vote') : t('votes')}
           </div>
           <VoteButton
             suggestionId={value.id}
-            returnTo={`/${slug}/suggestions/${value.id}`}
+            returnTo={`/${username}/${slug}/suggestions/${value.id}`}
           />
         </div>
       </article>

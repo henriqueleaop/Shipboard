@@ -57,9 +57,10 @@ export async function githubRepositories(baseUrl: string) {
   return githubRepositoriesResponseSchema.parse(await response.json());
 }
 
-export async function startGithubLink(baseUrl: string) {
+export async function startGithubBoardLink(baseUrl: string) {
   const response = await requestApi(baseUrl, '/api/auth/link-social/github', {
     method: 'POST',
+    body: JSON.stringify({ returnTo: '/boards/new' }),
   });
   return githubStartResponseSchema.parse(await response.json());
 }

@@ -45,6 +45,7 @@ export {
   publicBoardResponseSchema,
   createSuggestionRequestSchema,
   suggestionResponseSchema,
+  suggestionAuthorSchema,
   suggestionListQuerySchema,
   suggestionListResponseSchema,
   changeSuggestionStatusRequestSchema,
@@ -68,5 +69,10 @@ export {
   githubRepositorySchema,
   githubRepositoriesResponseSchema,
   boardVisibilitySchema,
+  githubProfileUrlSchema,
+  updateProfileRequestSchema,
+  publicProfileBoardSchema,
+  publicProfileSchema,
   type BoardVisibility,
+  type PublicProfile,
 } from './profiles/index.js';

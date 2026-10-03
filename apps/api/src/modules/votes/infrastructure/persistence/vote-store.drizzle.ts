@@ -31,6 +31,7 @@ export class DrizzleVoteStore implements VoteStore {
       const target = await transaction.execute(sql`
         SELECT s.id FROM suggestions s JOIN boards b ON b.id = s.board_id
         WHERE s.id = ${suggestionId}::uuid AND s.deleted_at IS NULL AND b.deleted_at IS NULL
+          AND (b.visibility <> 'PRIVATE' OR b.owner_id = ${userId}::uuid)
         FOR SHARE OF s, b
       `);
       if (!target.rows.length) return null;
@@ -68,6 +69,7 @@ export class DrizzleVoteStore implements VoteStore {
         (SELECT count(*)::integer FROM votes v WHERE v.suggestion_id = s.id AND v.deleted_at IS NULL) AS vote_count
       FROM suggestions s JOIN boards b ON b.id = s.board_id AND b.deleted_at IS NULL
       WHERE s.id = ${suggestionId}::uuid AND s.deleted_at IS NULL
+        AND (b.visibility <> 'PRIVATE' OR b.owner_id = ${userId}::uuid)
     `);
     const row = result.rows[0];
     return row
@@ -89,6 +91,7 @@ export class DrizzleVoteStore implements VoteStore {
         EXISTS(SELECT 1 FROM votes v WHERE v.suggestion_id = s.id AND v.user_id = ${userId}::uuid AND v.deleted_at IS NULL) AS voted
       FROM suggestions s JOIN boards b ON b.id = s.board_id AND b.deleted_at IS NULL
       WHERE s.board_id = ${boardId}::uuid AND s.deleted_at IS NULL AND s.id IN (${ids})
+        AND (b.visibility <> 'PRIVATE' OR b.owner_id = ${userId}::uuid)
     `);
     return result.rows.map((row) => ({
       suggestionId: String(row.suggestion_id),

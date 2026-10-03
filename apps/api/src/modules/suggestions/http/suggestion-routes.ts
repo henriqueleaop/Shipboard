@@ -41,7 +41,7 @@ const cursorSchema = z.tuple([
 ]);
 
 function present(
-  row: Pick<SuggestionWithCount, 'suggestion' | 'voteCount'>,
+  row: Pick<SuggestionWithCount, 'suggestion' | 'voteCount' | 'authorUsername'>,
 ): SuggestionResponse {
   const value = row.suggestion;
   return suggestionResponseSchema.parse({
@@ -54,6 +54,7 @@ function present(
     version: value.version,
     createdAt: value.createdAt.toISOString(),
     updatedAt: value.updatedAt.toISOString(),
+    author: { username: row.authorUsername },
   });
 }
 
@@ -120,6 +121,15 @@ export function registerSuggestionRoutes(
   resolvePrincipal: (request: FastifyRequest) => Promise<Principal | null>,
   config: AppConfig,
 ) {
+  const publicBoard = async (
+    request: FastifyRequest,
+    username: string,
+    slug: string,
+  ) => {
+    const actor = await resolvePrincipal(request);
+    return boards.publicByIdentity(username, slug, actor?.id);
+  };
+  const legacyPublicBoard = (slug: string) => boards.legacyPublicBySlug(slug);
   const authenticate = async (request: FastifyRequest, reply: FastifyReply) => {
     const actor = await resolvePrincipal(request);
     if (!actor) {
@@ -151,17 +161,43 @@ export function registerSuggestionRoutes(
     return actor;
   };
 
-  app.get<{ Params: { slug: string } }>(
-    '/api/v1/public/boards/:slug',
+  app.get<{ Params: { username: string; slug: string } }>(
+    '/api/v1/public/boards/:username/:slug',
     async (request, reply) => {
-      const board = await boards.bySlug(request.params.slug);
-      if (!board) throw new SuggestionError('BOARD_NOT_FOUND');
+      const found = await publicBoard(
+        request,
+        request.params.username,
+        request.params.slug,
+      );
+      if (!found) throw new SuggestionError('BOARD_NOT_FOUND');
+      const { board, ownerUsername } = found;
       return reply.send(
         publicBoardResponseSchema.parse({
           id: board.id,
           name: board.name,
           slug: board.slug,
           description: board.description,
+          ownerUsername,
+          githubRepositoryUrl: board.githubRepositoryUrl,
+        }),
+      );
+    },
+  );
+
+  app.get<{ Params: { slug: string } }>(
+    '/api/v1/public/boards/:slug',
+    async (request, reply) => {
+      const found = await legacyPublicBoard(request.params.slug);
+      if (!found) throw new SuggestionError('BOARD_NOT_FOUND');
+      const { board, ownerUsername } = found;
+      return reply.send(
+        publicBoardResponseSchema.parse({
+          id: board.id,
+          name: board.name,
+          slug: board.slug,
+          description: board.description,
+          ownerUsername,
+          githubRepositoryUrl: board.githubRepositoryUrl,
         }),
       );
     },
@@ -200,12 +236,49 @@ export function registerSuggestionRoutes(
     );
   };
 
+  app.get<{ Params: { username: string; slug: string } }>(
+    '/api/v1/public/boards/:username/:slug/suggestions',
+    async (request, reply) => {
+      const found = await publicBoard(
+        request,
+        request.params.username,
+        request.params.slug,
+      );
+      if (!found) throw new SuggestionError('BOARD_NOT_FOUND');
+      return list(request, reply, found.board.id);
+    },
+  );
+
   app.get<{ Params: { slug: string } }>(
     '/api/v1/public/boards/:slug/suggestions',
     async (request, reply) => {
-      const board = await boards.bySlug(request.params.slug);
-      if (!board) throw new SuggestionError('BOARD_NOT_FOUND');
-      return list(request, reply, board.id);
+      const found = await legacyPublicBoard(request.params.slug);
+      if (!found) throw new SuggestionError('BOARD_NOT_FOUND');
+      return list(request, reply, found.board.id);
+    },
+  );
+
+  app.get<{ Params: { username: string; slug: string; suggestionId: string } }>(
+    '/api/v1/public/boards/:username/:slug/suggestions/:suggestionId',
+    async (request, reply) => {
+      if (!idSchema.safeParse(request.params.suggestionId).success)
+        return badInput(request, reply);
+      const found = await publicBoard(
+        request,
+        request.params.username,
+        request.params.slug,
+      );
+      if (!found) throw new SuggestionError('BOARD_NOT_FOUND');
+      return reply.send(
+        present(
+          await suggestionDetail(
+            unit,
+            boards,
+            found.board.id,
+            request.params.suggestionId,
+          ),
+        ),
+      );
     },
   );
 
@@ -214,14 +287,14 @@ export function registerSuggestionRoutes(
     async (request, reply) => {
       if (!idSchema.safeParse(request.params.suggestionId).success)
         return badInput(request, reply);
-      const board = await boards.bySlug(request.params.slug);
-      if (!board) throw new SuggestionError('BOARD_NOT_FOUND');
+      const found = await legacyPublicBoard(request.params.slug);
+      if (!found) throw new SuggestionError('BOARD_NOT_FOUND');
       return reply.send(
         present(
           await suggestionDetail(
             unit,
             boards,
-            board.id,
+            found.board.id,
             request.params.suggestionId,
           ),
         ),
@@ -267,11 +340,13 @@ export function registerSuggestionRoutes(
       recordFeedbackEvent(
         replayed ? 'suggestion.replayed' : 'suggestion.created',
       );
+      const persisted = await unit.store.find(suggestion.id);
+      if (!persisted) throw new SuggestionError('SUGGESTION_NOT_FOUND');
       return reply
         .header('location', location)
         .header('etag', `"${suggestion.version}"`)
         .code(201)
-        .send(present({ suggestion, voteCount: 0 }));
+        .send(present(persisted));
     },
   );
 
@@ -322,12 +397,11 @@ export function registerSuggestionRoutes(
           status: result.suggestion.status,
         });
       }
-      return reply.header('etag', `"${result.suggestion.version}"`).send(
-        present({
-          suggestion: result.suggestion,
-          voteCount: result.voteCount,
-        }),
-      );
+      const persisted = await unit.store.find(result.suggestion.id);
+      if (!persisted) throw new SuggestionError('SUGGESTION_NOT_FOUND');
+      return reply
+        .header('etag', `"${result.suggestion.version}"`)
+        .send(present(persisted));
     },
   );
 }

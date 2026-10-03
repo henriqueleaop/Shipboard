@@ -19,6 +19,7 @@ export interface SuggestionListOptions {
 export interface SuggestionWithCount {
   suggestion: Suggestion;
   voteCount: number;
+  authorUsername: string;
   cursorCreatedAt: string;
 }
 
@@ -30,7 +31,9 @@ export interface SuggestionReplay {
 }
 
 export interface SuggestionStore {
-  activeBoardSlug(id: string): Promise<string | null>;
+  activeBoardSlug(
+    id: string,
+  ): Promise<{ slug: string; ownerUsername: string } | null>;
   insert(value: Suggestion): Promise<void>;
   find(id: string): Promise<SuggestionWithCount | null>;
   list(options: SuggestionListOptions): Promise<SuggestionWithCount[]>;

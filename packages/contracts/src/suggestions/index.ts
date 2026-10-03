@@ -20,6 +20,12 @@ export const publicBoardResponseSchema = z.strictObject({
   name: z.string(),
   slug: z.string(),
   description: z.string(),
+  ownerUsername: z.string(),
+  githubRepositoryUrl: z.string().url().nullable(),
+});
+
+export const suggestionAuthorSchema = z.strictObject({
+  username: z.string(),
 });
 
 export const createSuggestionRequestSchema = z.strictObject({
@@ -37,6 +43,7 @@ export const suggestionResponseSchema = z.strictObject({
   version: z.number().int().positive(),
   createdAt: z.iso.datetime({ offset: true }),
   updatedAt: z.iso.datetime({ offset: true }),
+  author: suggestionAuthorSchema,
 });
 
 export const suggestionListQuerySchema = z.strictObject({

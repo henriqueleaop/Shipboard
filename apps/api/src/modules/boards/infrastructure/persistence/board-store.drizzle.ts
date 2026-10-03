@@ -98,6 +98,44 @@ class DrizzleBoardStore implements BoardStore {
     return result.rows[0] ? mapBoard(result.rows[0]) : null;
   }
 
+  async findPublicByIdentity(
+    username: string,
+    slug: string,
+    actorId?: string,
+  ): Promise<{ board: Board; ownerUsername: string } | null> {
+    const result = await this.executor.execute(sql`
+      SELECT b.id, b.owner_id, b.name, b.slug, b.description, b.visibility,
+        b.github_repository_url, b.version, b.created_at, b.updated_at,
+        b.deleted_at, u.username AS owner_username
+      FROM boards b JOIN "user" u ON u.id = b.owner_id
+      WHERE u.username = ${username} AND b.slug = ${slug}
+        AND b.deleted_at IS NULL
+        AND (b.visibility IN ('PUBLIC', 'UNLISTED')
+          ${actorId ? sql`OR b.owner_id = ${actorId}::uuid` : sql``})
+      LIMIT 1
+    `);
+    const row = result.rows[0];
+    if (!row || typeof row.owner_username !== 'string') return null;
+    return { board: mapBoard(row), ownerUsername: row.owner_username };
+  }
+
+  async findLegacyPublicBySlug(
+    slug: string,
+  ): Promise<{ board: Board; ownerUsername: string } | null> {
+    const result = await this.executor.execute(sql`
+      SELECT b.id, b.owner_id, b.name, b.slug, b.description, b.visibility,
+        b.github_repository_url, b.version, b.created_at, b.updated_at,
+        b.deleted_at, u.username AS owner_username
+      FROM boards b JOIN "user" u ON u.id = b.owner_id
+      WHERE b.slug = ${slug} AND b.visibility = 'PUBLIC' AND b.deleted_at IS NULL
+      LIMIT 2
+    `);
+    if (result.rows.length !== 1) return null;
+    const row = result.rows[0]!;
+    if (typeof row.owner_username !== 'string') return null;
+    return { board: mapBoard(row), ownerUsername: row.owner_username };
+  }
+
   async listOwned(
     ownerId: string,
     limit: number,

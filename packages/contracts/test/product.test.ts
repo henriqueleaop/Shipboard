@@ -8,7 +8,9 @@ import {
   localReturnPathSchema,
   githubStartRequestSchema,
   githubRepositoryUrlSchema,
+  githubProfileUrlSchema,
   isReservedUsername,
+  publicProfileSchema,
   signUpRequestSchema,
   updateBoardRequestSchema,
   usernameSchema,
@@ -113,6 +115,23 @@ describe('product HTTP contracts', () => {
       githubRepositoryUrlSchema.safeParse(
         'https://github.com/shipboard/shipboard/issues',
       ).success,
+    ).toBe(false);
+    expect(
+      githubProfileUrlSchema.safeParse('https://github.com/shipboard').success,
+    ).toBe(true);
+    expect(
+      githubProfileUrlSchema.safeParse('https://github.com/shipboard?tab=repos')
+        .success,
+    ).toBe(false);
+    expect(
+      publicProfileSchema.safeParse({
+        username: 'shipboard',
+        githubProfileUrl: 'https://github.com/shipboard',
+        boards: [
+          { name: 'Shipboard', slug: 'shipboard', description: 'Feedback' },
+        ],
+        email: 'private@example.com',
+      }).success,
     ).toBe(false);
   });
 });

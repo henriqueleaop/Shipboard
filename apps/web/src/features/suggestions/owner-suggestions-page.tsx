@@ -23,16 +23,19 @@ import { useApiUrl } from '../../app/providers';
 import { BoardWorkspace } from '../../components/layout/board-workspace';
 import { ApiError } from '../../lib/api/client';
 import { getBoard } from '../boards/api';
+import { currentUser } from '../auth/api';
 import { getSuggestion, listSuggestions, updateSuggestionStatus } from './api';
 import { StatusBadge } from './suggestion-card';
 
 function ReviewRow({
   value,
   boardId,
+  username,
   slug,
 }: {
   value: SuggestionResponse;
   boardId: string;
+  username: string;
   slug: string;
 }) {
   const { t, statusLabel } = useLocale();
@@ -55,12 +58,14 @@ function ReviewRow({
       await client.invalidateQueries({
         queryKey: ['owner-suggestions', boardId],
       });
-      await client.invalidateQueries({ queryKey: ['suggestions', slug] });
+      await client.invalidateQueries({
+        queryKey: ['suggestions', username, slug],
+      });
       await client.invalidateQueries({ queryKey: ['suggestion', value.id] });
     },
   });
   const reload = useMutation({
-    mutationFn: () => getSuggestion(apiUrl, slug, value.id),
+    mutationFn: () => getSuggestion(apiUrl, username, slug, value.id),
     onSuccess: (fresh) => {
       setLoaded(fresh);
       change.reset();
@@ -72,16 +77,18 @@ function ReviewRow({
         <div className="suggestion-meta">
           <StatusBadge status={loaded.status} />
           <span>
-            {value.voteCount} {value.voteCount === 1 ? t("vote") : t("votes")}
+            {value.voteCount} {value.voteCount === 1 ? t('vote') : t('votes')}
           </span>
         </div>
         <h3>
-          <Link href={`/${slug}/suggestions/${value.id}`}>{value.title}</Link>
+          <Link href={`/${username}/${slug}/suggestions/${value.id}`}>
+            {value.title}
+          </Link>
         </h3>
         <p>{value.description}</p>
       </div>
       <div className="review-action">
-        <label htmlFor={`status-${value.id}`}>{t("Move to")}</label>
+        <label htmlFor={`status-${value.id}`}>{t('Move to')}</label>
         <select
           id={`status-${value.id}`}
           value={choice}
@@ -103,22 +110,26 @@ function ReviewRow({
           }
           onClick={() => change.mutate()}
         >
-          {change.isPending ? t("Saving…") : t("Update status")}
+          {change.isPending ? t('Saving…') : t('Update status')}
         </button>
         {change.isError && (
           <p role="alert" className="field-error">
             {change.error instanceof ApiError && change.error.status === 412
-              ? t("This idea changed in another tab. Reload the list before saving.")
-              : t("Could not update this idea.")}{' '}
+              ? t(
+                  'This idea changed in another tab. Reload the list before saving.',
+                )
+              : t('Could not update this idea.')}{' '}
             <button
               type="button"
               disabled={reload.isPending}
               onClick={() => reload.mutate()}
-            >{t("Reload")}{' '}</button>
+            >
+              {t('Reload')}{' '}
+            </button>
           </p>
         )}
         {reload.isError && (
-          <p role="alert">{t("Could not reload this idea. Try again.")}</p>
+          <p role="alert">{t('Could not reload this idea. Try again.')}</p>
         )}
       </div>
     </article>
@@ -135,6 +146,10 @@ export default function OwnerSuggestionsPage() {
     queryKey: ['board', id],
     queryFn: () => getBoard(apiUrl, id),
   });
+  const user = useQuery({
+    queryKey: ['current-user'],
+    queryFn: () => currentUser(apiUrl),
+  });
   const ideas = useInfiniteQuery({
     queryKey: ['owner-suggestions', id, status, sort],
     queryFn: ({ pageParam }) =>
@@ -146,36 +161,51 @@ export default function OwnerSuggestionsPage() {
   if (board.isError)
     return (
       <main className="page narrow">
-        <h1>{t("Board unavailable")}</h1>
+        <h1>{t('Board unavailable')}</h1>
         <p role="alert">
           {board.error instanceof ApiError
             ? errorMessage(board.error)
-            : t("Could not load board.")}
+            : t('Could not load board.')}
         </p>
-        <Link href="/boards">{t("My boards")}</Link>
+        <Link href="/boards">{t('My boards')}</Link>
       </main>
     );
   if (board.isPending)
     return (
       <main className="page">
-        <p>{t("Loading board…")}</p>
+        <p>{t('Loading board…')}</p>
       </main>
     );
   const rows = ideas.data?.pages.flatMap((page) => page.items) ?? [];
   return (
     <main className="page">
       <BoardWorkspace id={id} slug={board.data.board.slug} active="ideas">
-        <Link className="breadcrumb" href={`/boards/${id}`}>{t("← Board settings")}{' '}</Link>
+        <Link className="breadcrumb" href={`/boards/${id}`}>
+          {t('← Board settings')}{' '}
+        </Link>
         <div className="page-heading">
           <div>
-            <p className="eyebrow">{t("Feedback desk /")}{' '}{board.data.board.slug}</p>
-            <h1>{t("Review ideas")}</h1>
-            <p>{t("Move the best feedback forward. Every change appears on the public board.")}{' '}</p>
+            <p className="eyebrow">
+              {t('Feedback desk /')} {board.data.board.slug}
+            </p>
+            <h1>{t('Review ideas')}</h1>
+            <p>
+              {t(
+                'Move the best feedback forward. Every change appears on the public board.',
+              )}{' '}
+            </p>
           </div>
-          <Link className="button" href={`/${board.data.board.slug}`}>{t("View public board ↗")}{' '}</Link>
+          {user.data && (
+            <Link
+              className="button"
+              href={`/${user.data.username}/${board.data.board.slug}`}
+            >
+              {t('View public board ↗')}{' '}
+            </Link>
+          )}
         </div>
         <div className="filter-bar">
-          <label htmlFor="owner-sort">{t("Sort by")}</label>
+          <label htmlFor="owner-sort">{t('Sort by')}</label>
           <select
             id="owner-sort"
             value={sort}
@@ -183,11 +213,11 @@ export default function OwnerSuggestionsPage() {
           >
             {suggestionSortSchema.options.map((value) => (
               <option key={value} value={value}>
-                {value === 'newest' ? t("Newest first") : t("Most voted")}
+                {value === 'newest' ? t('Newest first') : t('Most voted')}
               </option>
             ))}
           </select>
-          <label htmlFor="owner-status">{t("Show")}</label>
+          <label htmlFor="owner-status">{t('Show')}</label>
           <select
             id="owner-status"
             value={status ?? ''}
@@ -195,7 +225,7 @@ export default function OwnerSuggestionsPage() {
               setStatus((event.target.value as SuggestionStatus) || undefined)
             }
           >
-            <option value="">{t("All statuses")}</option>
+            <option value="">{t('All statuses')}</option>
             {suggestionStatusSchema.options.map((item) => (
               <option key={item} value={item}>
                 {statusLabel(item)}
@@ -203,16 +233,19 @@ export default function OwnerSuggestionsPage() {
             ))}
           </select>
         </div>
-        {ideas.isPending && <p>{t("Loading ideas…")}</p>}
+        {ideas.isPending && <p>{t('Loading ideas…')}</p>}
         {ideas.isError && (
-          <p role="alert" className="notice error">{t("Could not load ideas.")}{' '}
-            <button type="button" onClick={() => ideas.refetch()}>{t("Try again")}{' '}</button>
+          <p role="alert" className="notice error">
+            {t('Could not load ideas.')}{' '}
+            <button type="button" onClick={() => ideas.refetch()}>
+              {t('Try again')}{' '}
+            </button>
           </p>
         )}
         {ideas.isSuccess && rows.length === 0 && (
           <div className="empty-state">
-            <h2>{t("No ideas in this view")}</h2>
-            <p>{t("Share your public board to start gathering feedback.")}</p>
+            <h2>{t('No ideas in this view')}</h2>
+            <p>{t('Share your public board to start gathering feedback.')}</p>
           </div>
         )}
         <div className="review-list">
@@ -221,6 +254,7 @@ export default function OwnerSuggestionsPage() {
               key={item.id}
               value={item}
               boardId={id}
+              username={user.data?.username ?? ''}
               slug={board.data.board.slug}
             />
           ))}
@@ -232,7 +266,7 @@ export default function OwnerSuggestionsPage() {
             disabled={ideas.isFetchingNextPage}
             onClick={() => ideas.fetchNextPage()}
           >
-            {ideas.isFetchingNextPage ? t("Loading…") : t("Load more")}
+            {ideas.isFetchingNextPage ? t('Loading…') : t('Load more')}
           </button>
         )}
       </BoardWorkspace>

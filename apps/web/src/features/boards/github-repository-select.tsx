@@ -7,7 +7,7 @@ import { useApiUrl } from '../../app/providers';
 import { CharacterCounter } from '../../components/ui/character-counter';
 import { Input } from '../../components/ui/input';
 import { useLocale } from '../../lib/i18n/provider';
-import { githubRepositories, startGithubLink } from './api';
+import { githubRepositories, startGithubBoardLink } from './api';
 
 export function GitHubRepositorySelect({
   value,
@@ -24,7 +24,7 @@ export function GitHubRepositorySelect({
     queryFn: () => githubRepositories(apiUrl),
   });
   const link = useMutation({
-    mutationFn: () => startGithubLink(apiUrl),
+    mutationFn: () => startGithubBoardLink(apiUrl),
     onSuccess: ({ url }) => window.location.assign(url),
   });
   const items = (repositories.data?.items ?? []).filter((repository) =>
@@ -65,7 +65,11 @@ export function GitHubRepositorySelect({
       {repositories.isError && (
         <div role="alert" className="field-error">
           <p>{errorMessage(repositories.error)}</p>
-          <button type="button" className="button" onClick={() => link.mutate()}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => link.mutate()}
+          >
             {link.isPending ? t('Connecting…') : t('Connect GitHub')}
           </button>
         </div>

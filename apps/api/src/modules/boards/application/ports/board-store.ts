@@ -15,6 +15,14 @@ export interface BoardStore {
   insert(board: Board): Promise<void>;
   find(id: string): Promise<Board | null>;
   findBySlug(slug: string): Promise<Board | null>;
+  findPublicByIdentity(
+    username: string,
+    slug: string,
+    actorId?: string,
+  ): Promise<{ board: Board; ownerUsername: string } | null>;
+  findLegacyPublicBySlug(
+    slug: string,
+  ): Promise<{ board: Board; ownerUsername: string } | null>;
   listOwned(
     ownerId: string,
     limit: number,

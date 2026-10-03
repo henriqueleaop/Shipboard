@@ -36,6 +36,7 @@ function fromCountRow(row: Record<string, unknown>): SuggestionWithCount {
   return {
     suggestion: fromRow(row),
     voteCount: Number(row.vote_count),
+    authorUsername: String(row.author_username),
     cursorCreatedAt: String(row.cursor_created_at),
   };
 }
@@ -62,11 +63,17 @@ const cursorCreatedAt = sql`to_char(s.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD
 class DrizzleSuggestionStore implements SuggestionStore {
   constructor(private readonly executor: Executor) {}
 
-  async activeBoardSlug(id: string): Promise<string | null> {
+  async activeBoardSlug(
+    id: string,
+  ): Promise<{ slug: string; ownerUsername: string } | null> {
     const result = await this.executor.execute(
-      sql`SELECT slug FROM boards WHERE id = ${id}::uuid AND deleted_at IS NULL FOR SHARE`,
+      sql`SELECT b.slug, u.username AS owner_username FROM boards b
+        JOIN "user" u ON u.id = b.owner_id
+        WHERE b.id = ${id}::uuid AND b.deleted_at IS NULL FOR SHARE`,
     );
-    return result.rows[0] ? String(result.rows[0].slug) : null;
+    const row = result.rows[0];
+    if (!row || typeof row.owner_username !== 'string') return null;
+    return { slug: String(row.slug), ownerUsername: row.owner_username };
   }
 
   async insert(value: Suggestion): Promise<void> {
@@ -78,8 +85,9 @@ class DrizzleSuggestionStore implements SuggestionStore {
 
   async find(id: string): Promise<SuggestionWithCount | null> {
     const result = await this.executor.execute(sql`
-      SELECT s.*, ${voteCount} AS vote_count, ${cursorCreatedAt} AS cursor_created_at FROM suggestions s
+      SELECT s.*, u.username AS author_username, ${voteCount} AS vote_count, ${cursorCreatedAt} AS cursor_created_at FROM suggestions s
       JOIN boards b ON b.id = s.board_id AND b.deleted_at IS NULL
+      JOIN "user" u ON u.id = s.author_id
       WHERE s.id = ${id}::uuid AND s.deleted_at IS NULL
     `);
     return result.rows[0] ? fromCountRow(result.rows[0]) : null;
@@ -88,8 +96,9 @@ class DrizzleSuggestionStore implements SuggestionStore {
   async list(options: SuggestionListOptions): Promise<SuggestionWithCount[]> {
     const { boardId, status, cursor, limit, sort } = options;
     const result = await this.executor.execute(sql`
-      SELECT s.*, ${voteCount} AS vote_count, ${cursorCreatedAt} AS cursor_created_at FROM suggestions s
+      SELECT s.*, u.username AS author_username, ${voteCount} AS vote_count, ${cursorCreatedAt} AS cursor_created_at FROM suggestions s
       JOIN boards b ON b.id = s.board_id AND b.deleted_at IS NULL
+      JOIN "user" u ON u.id = s.author_id
       WHERE s.board_id = ${boardId}::uuid AND s.deleted_at IS NULL
         ${status ? sql`AND s.status = ${status}` : sql``}
         ${cursor && sort === 'newest' ? sql`AND (s.created_at, s.id) < (${cursor.createdAt}, ${cursor.id}::uuid)` : sql``}

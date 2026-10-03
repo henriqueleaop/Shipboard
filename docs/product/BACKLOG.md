@@ -520,6 +520,44 @@ Concurrency:
 
 ---
 
+### RF-045 — Public identity and board discovery
+
+Each account has a unique public username. Public boards use the canonical URL
+`/<username>/<board-slug>`. A board can be public, unlisted, or private;
+private resources must be indistinguishable from missing resources to
+non-owners. A public profile exposes only its username, optional GitHub
+profile, and public boards.
+
+---
+
+### US-029 — Publish a public profile and canonical board identity
+
+**As a product owner, I want a public identity and visibility controls so that
+I can safely share my boards and feedback contributors can be discovered.**
+
+Priority: `P1`  
+Status: `IN_PROGRESS`
+
+Depends on:
+
+- US-008
+- US-011
+
+Acceptance criteria:
+
+- users can choose and update a unique valid username;
+- public boards resolve only at `/<username>/<board-slug>`;
+- public profiles show only public boards and optional GitHub profile links;
+- unlisted boards remain readable at their canonical URL but are omitted from
+  profiles;
+- private boards return the same not-found response to outsiders across board,
+  suggestion, and voting paths;
+- suggestion responses expose only the author's public username;
+- GitHub linking is explicit and does not enable implicit same-email account
+  linking.
+
+---
+
 # 7. EPIC-004 — Public Board
 
 The feedback board must be publicly accessible.

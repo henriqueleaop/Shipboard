@@ -28,7 +28,7 @@ import { SuggestionCard } from './suggestion-card';
 
 export default function PublicBoardPage() {
   const { t, statusLabel } = useLocale();
-  const { slug } = useParams<{ slug: string }>();
+  const { username, slug } = useParams<{ username: string; slug: string }>();
   const search = useSearchParams();
   const router = useRouter();
   const apiUrl = useApiUrl();
@@ -39,17 +39,21 @@ export default function PublicBoardPage() {
     search.get('status'),
   ).data;
   const board = useQuery({
-    queryKey: ['public-board', slug],
-    queryFn: () => publicBoard(apiUrl, slug),
+    queryKey: ['public-board', username, slug],
+    queryFn: () => publicBoard(apiUrl, username, slug),
   });
   const user = useQuery({
     queryKey: ['current-user'],
     queryFn: () => currentUser(apiUrl),
   });
   const ideas = useInfiniteQuery({
-    queryKey: ['suggestions', slug, sort, status],
+    queryKey: ['suggestions', username, slug, sort, status],
     queryFn: ({ pageParam }) =>
-      listSuggestions(apiUrl, { slug }, { sort, status, cursor: pageParam }),
+      listSuggestions(
+        apiUrl,
+        { username, slug },
+        { sort, status, cursor: pageParam },
+      ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.page.nextCursor ?? undefined,
     enabled: Boolean(board.data),
@@ -81,37 +85,41 @@ export default function PublicBoardPage() {
       await client.invalidateQueries({
         queryKey: ['my-votes', board.data?.id],
       });
-      await client.invalidateQueries({ queryKey: ['suggestions', slug] });
+      await client.invalidateQueries({
+        queryKey: ['suggestions', username, slug],
+      });
     },
   });
   const change = (nextSort: SuggestionSort, nextStatus?: SuggestionStatus) => {
     const params = new URLSearchParams();
     if (nextSort !== 'newest') params.set('sort', nextSort);
     if (nextStatus) params.set('status', nextStatus);
-    router.push(`/${slug}${params.size ? `?${params}` : ''}`);
+    router.push(`/${username}/${slug}${params.size ? `?${params}` : ''}`);
   };
   if (board.isPending)
     return (
       <main className="page">
-        <p>{t("Loading this board…")}</p>
+        <p>{t('Loading this board…')}</p>
       </main>
     );
   if (board.isError)
     return (
       <main className="page narrow">
-        <p className="eyebrow">{t("Board unavailable")}</p>
+        <p className="eyebrow">{t('Board unavailable')}</p>
         <h1>
           {board.error instanceof ApiError && board.error.status === 404
-            ? t("This board could not be found.")
-            : t("We could not load this board.")}
+            ? t('This board could not be found.')
+            : t('We could not load this board.')}
         </h1>
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <button
             className="button"
             type="button"
             onClick={() => board.refetch()}
-          >{t("Try again")}{' '}</button>
-          <Link href="/">{t("Return home")}</Link>
+          >
+            {t('Try again')}{' '}
+          </button>
+          <Link href="/">{t('Return home')}</Link>
         </div>
       </main>
     );
@@ -122,29 +130,35 @@ export default function PublicBoardPage() {
           <Link href="/" className="breadcrumb">
             ← Shipboard
           </Link>
-          <p className="eyebrow">{t("Public feedback board · /")}{board.data.slug}</p>
+          <p className="eyebrow">
+            {t('Public feedback board · /')}
+            {board.data.slug}
+          </p>
           <h1>{board.data.name}</h1>
           <p className="hero-lede">
-            {board.data.description || t("A place to shape what comes next.")}
+            {board.data.description || t('A place to shape what comes next.')}
           </p>
         </div>
         <div className="public-board-stat">
           <strong>{items.length}</strong>
-          <span>{t("ideas in view")}</span>
-          <small>{t("Real voices. Clear progress.")}</small>
+          <span>{t('ideas in view')}</span>
+          <small>{t('Real voices. Clear progress.')}</small>
         </div>
       </header>
       <div className="feedback-layout">
         <section aria-labelledby="ideas-heading">
           <div className="ideas-heading">
             <div>
-              <p className="eyebrow">{t("The conversation")}</p>
-              <h2 id="ideas-heading">{t("Ideas & progress")}</h2>
+              <p className="eyebrow">{t('The conversation')}</p>
+              <h2 id="ideas-heading">{t('Ideas & progress')}</h2>
             </div>
-            <span>{items.length}{t("shown")}</span>
+            <span>
+              {items.length}
+              {t('shown')}
+            </span>
           </div>
           <div className="filter-bar">
-            <label htmlFor="sort-ideas">{t("Sort by")}</label>
+            <label htmlFor="sort-ideas">{t('Sort by')}</label>
             <select
               id="sort-ideas"
               value={sort}
@@ -152,10 +166,10 @@ export default function PublicBoardPage() {
                 change(event.target.value as SuggestionSort, status)
               }
             >
-              <option value="newest">{t("Newest first")}</option>
-              <option value="most_voted">{t("Most voted")}</option>
+              <option value="newest">{t('Newest first')}</option>
+              <option value="most_voted">{t('Most voted')}</option>
             </select>
-            <label htmlFor="filter-status">{t("Status")}</label>
+            <label htmlFor="filter-status">{t('Status')}</label>
             <select
               id="filter-status"
               value={status ?? ''}
@@ -166,7 +180,7 @@ export default function PublicBoardPage() {
                 )
               }
             >
-              <option value="">{t("All statuses")}</option>
+              <option value="">{t('All statuses')}</option>
               {suggestionStatusSchema.options.map((value) => (
                 <option value={value} key={value}>
                   {statusLabel(value)}
@@ -174,20 +188,25 @@ export default function PublicBoardPage() {
               ))}
             </select>
           </div>
-          {ideas.isPending && <p>{t("Loading ideas…")}</p>}
+          {ideas.isPending && <p>{t('Loading ideas…')}</p>}
           {ideas.isError && (
-            <p role="alert" className="notice error">{t("Could not load ideas.")}{' '}
-              <button type="button" onClick={() => ideas.refetch()}>{t("Try again")}{' '}</button>
+            <p role="alert" className="notice error">
+              {t('Could not load ideas.')}{' '}
+              <button type="button" onClick={() => ideas.refetch()}>
+                {t('Try again')}{' '}
+              </button>
             </p>
           )}
           {ideas.isSuccess && items.length === 0 && (
             <div className="empty-state">
-              <p className="eyebrow">{t("Open deck")}</p>
-              <h3>{t("No ideas here yet")}</h3>
+              <p className="eyebrow">{t('Open deck')}</p>
+              <h3>{t('No ideas here yet')}</h3>
               <p>
                 {status
-                  ? t("Try another status, or share a new idea.")
-                  : t("Be the first to suggest what this product should do next.")}
+                  ? t('Try another status, or share a new idea.')
+                  : t(
+                      'Be the first to suggest what this product should do next.',
+                    )}
               </p>
             </div>
           )}
@@ -196,13 +215,14 @@ export default function PublicBoardPage() {
               <SuggestionCard
                 key={item.id}
                 suggestion={item}
+                username={username}
                 slug={slug}
                 action={
                   user.data ? (
                     <button
                       className="inline-vote"
                       type="button"
-                      aria-label={`${myVotes.data?.get(item.id) ? t("Remove vote from") : t("Vote for")} ${item.title}`}
+                      aria-label={`${myVotes.data?.get(item.id) ? t('Remove vote from') : t('Vote for')} ${item.title}`}
                       aria-pressed={myVotes.data?.get(item.id) ?? false}
                       disabled={!myVotes.data || vote.isPending}
                       onClick={() =>
@@ -212,20 +232,24 @@ export default function PublicBoardPage() {
                         })
                       }
                     >
-                      {myVotes.data?.get(item.id) ? t("▲ Voted") : t("△ Vote")}
+                      {myVotes.data?.get(item.id) ? t('▲ Voted') : t('△ Vote')}
                     </button>
                   ) : (
                     <Link
                       className="inline-vote"
-                      href={`/login?returnTo=${encodeURIComponent(`/${slug}`)}`}
-                    >{t("Sign in to vote")}{' '}</Link>
+                      href={`/login?returnTo=${encodeURIComponent(`/${username}/${slug}`)}`}
+                    >
+                      {t('Sign in to vote')}{' '}
+                    </Link>
                   )
                 }
               />
             ))}
           </div>
           {vote.isError && (
-            <p role="alert" className="notice error">{t("Could not update your vote. Try again.")}{' '}</p>
+            <p role="alert" className="notice error">
+              {t('Could not update your vote. Try again.')}{' '}
+            </p>
           )}
           {ideas.hasNextPage && (
             <button
@@ -234,7 +258,7 @@ export default function PublicBoardPage() {
               disabled={ideas.isFetchingNextPage}
               onClick={() => ideas.fetchNextPage()}
             >
-              {ideas.isFetchingNextPage ? t("Loading…") : t("Load more ideas")}
+              {ideas.isFetchingNextPage ? t('Loading…') : t('Load more ideas')}
             </button>
           )}
         </section>
@@ -246,7 +270,11 @@ export default function PublicBoardPage() {
           />
           <div className="board-aside-note">
             <span>01 / 03</span>
-            <p>{t("Ideas move from review to the roadmap, into progress, and finally to shipped.")}{' '}</p>
+            <p>
+              {t(
+                'Ideas move from review to the roadmap, into progress, and finally to shipped.',
+              )}{' '}
+            </p>
           </div>
         </aside>
       </div>

@@ -53,6 +53,7 @@ export function SiteHeader() {
             <Link className="header-center-link" href="/boards">
               {t('My boards')}
             </Link>
+            <Link href="/settings">Settings</Link>
             <button type="button" onClick={logout} disabled={pending}>
               {pending ? t('Signing out…') : t('Sign out')}
             </button>

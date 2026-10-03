@@ -31,6 +31,9 @@ import { createSuggestionUnitOfWork } from '../modules/suggestions/infrastructur
 import { VoteError } from '../modules/votes/application/vote-use-cases.js';
 import { registerVoteRoutes } from '../modules/votes/http/vote-routes.js';
 import { DrizzleVoteStore } from '../modules/votes/infrastructure/persistence/vote-store.drizzle.js';
+import { ProfileError } from '../modules/profiles/application/profile-error.js';
+import { registerProfileRoutes } from '../modules/profiles/http/profile-routes.js';
+import { createProfileAccess } from '../modules/profiles/infrastructure/persistence/profile-access.drizzle.js';
 import { sendProblem } from '../shared/http/problem.js';
 import {
   recordDatabaseCheck,
@@ -251,12 +254,15 @@ export async function buildApp(
 
   if (hasDatabaseClient(activeDatabase)) {
     const auth = createAuth(config, activeDatabase.db);
+    const profiles = createProfileAccess(activeDatabase);
     const { principal } = registerAuthRoutes(
       app,
       auth,
       config,
       activeDatabase.db,
+      profiles,
     );
+    registerProfileRoutes(app, profiles, principal);
     const boardUnit = createBoardUnitOfWork(activeDatabase);
     registerBoardRoutes(app, boardUnit, principal, config);
     registerSuggestionRoutes(
@@ -317,6 +323,26 @@ export async function buildApp(
         error.code,
         'Vote operation failed',
         'The requested resource does not exist.',
+      );
+    }
+    if (error instanceof ProfileError) {
+      const status = error.code === 'USERNAME_CONFLICT' ? 409 : 404;
+      request.log.info({
+        event: 'profile.operation_rejected',
+        errorCode: error.code,
+        requestId: request.id,
+      });
+      return sendProblem(
+        request,
+        reply,
+        status,
+        error.code,
+        error.code === 'USERNAME_CONFLICT'
+          ? 'Username unavailable'
+          : 'Profile not found',
+        error.code === 'USERNAME_CONFLICT'
+          ? 'Choose another username.'
+          : 'The requested profile does not exist.',
       );
     }
     if (error instanceof SuggestionError) {

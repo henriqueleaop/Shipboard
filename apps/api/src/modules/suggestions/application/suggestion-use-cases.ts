@@ -31,8 +31,8 @@ export async function createSuggestion(
   const scope = `${actor.id}:POST:/api/v1/boards/${boardId}/suggestions`;
   const requestHash = hashInput(input);
   return unit.run(async (store) => {
-    const slug = await store.activeBoardSlug(boardId);
-    if (slug === null) throw new SuggestionError('BOARD_NOT_FOUND');
+    const board = await store.activeBoardSlug(boardId);
+    if (board === null) throw new SuggestionError('BOARD_NOT_FOUND');
     if (!(await store.tryReplayLock(scope, key)))
       throw new SuggestionError('IDEMPOTENCY_IN_PROGRESS');
     const replay = await store.findReplay(scope, key);
@@ -47,7 +47,7 @@ export async function createSuggestion(
     }
     if (replay) await store.deleteReplay(scope, key);
     const suggestion = Suggestion.create(boardId, actor.id, input);
-    const location = `/api/v1/public/boards/${encodeURIComponent(slug)}/suggestions/${suggestion.id}`;
+    const location = `/api/v1/public/boards/${encodeURIComponent(board.ownerUsername)}/${encodeURIComponent(board.slug)}/suggestions/${suggestion.id}`;
     await store.insert(suggestion);
     await store.saveReplay(
       scope,

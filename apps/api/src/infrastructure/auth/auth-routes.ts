@@ -16,12 +16,13 @@ import type { createAuth } from './create-auth.js';
 import type { AppConfig } from '../../app/config.js';
 import { sendProblem } from '../../shared/http/problem.js';
 import { toPrincipal, type Principal } from '../../shared/types/principal.js';
-import { account } from '../database/auth-schema.js';
+import { account, user } from '../database/auth-schema.js';
 import type { createDatabase } from '../database/client.js';
+import type { ProfileAccess } from '../../modules/profiles/application/ports/profile-access.js';
 
 type Auth = ReturnType<typeof createAuth>;
 
-function responseUser(value: unknown) {
+async function responseUser(value: unknown, profiles: ProfileAccess) {
   if (!value || typeof value !== 'object' || !('user' in value)) {
     throw new Error('Authentication response has no user.');
   }
@@ -34,7 +35,10 @@ function responseUser(value: unknown) {
   ) {
     throw new Error('Authentication response user is invalid.');
   }
-  return currentUserSchema.parse({ id: user.id, email: user.email });
+  if (typeof user.id !== 'string' || typeof user.email !== 'string') {
+    throw new Error('Authentication response user is invalid.');
+  }
+  return currentUserSchema.parse(await profiles.current(user.id, user.email));
 }
 
 function validationErrors(error: z.ZodError) {
@@ -50,6 +54,7 @@ export function registerAuthRoutes(
   auth: Auth,
   config: AppConfig,
   database: ReturnType<typeof createDatabase>['db'],
+  profiles: ProfileAccess,
 ) {
   async function principal(request: FastifyRequest): Promise<Principal | null> {
     const session = await auth.api.getSession({
@@ -118,7 +123,9 @@ export function registerAuthRoutes(
       );
     }
     copyCookies(response, reply);
-    return reply.code(200).send(responseUser(await response.json()));
+    return reply
+      .code(200)
+      .send(await responseUser(await response.json(), profiles));
   });
 
   app.post('/api/auth/sign-in/email', async (request, reply) => {
@@ -146,7 +153,9 @@ export function registerAuthRoutes(
       );
     }
     copyCookies(response, reply);
-    return reply.code(200).send(responseUser(await response.json()));
+    return reply
+      .code(200)
+      .send(await responseUser(await response.json(), profiles));
   });
 
   app.post('/api/auth/sign-out', async (request, reply) => {
@@ -226,7 +235,8 @@ export function registerAuthRoutes(
       );
     }
     const payload: unknown = await upstream.json();
-    if (!Array.isArray(payload)) throw new Error('GitHub repository response is invalid.');
+    if (!Array.isArray(payload))
+      throw new Error('GitHub repository response is invalid.');
     const items = payload.flatMap((item) => {
       if (!item || typeof item !== 'object') return [];
       const repo = item as Record<string, unknown>;
@@ -237,15 +247,86 @@ export function registerAuthRoutes(
         typeof repo.html_url !== 'string'
       )
         return [];
-      const parsed = githubRepositoriesResponseSchema.shape.items.element.safeParse({
-        name: repo.name,
-        fullName: repo.full_name,
-        url: repo.html_url,
-      });
+      const parsed =
+        githubRepositoriesResponseSchema.shape.items.element.safeParse({
+          name: repo.name,
+          fullName: repo.full_name,
+          url: repo.html_url,
+        });
       return parsed.success ? [parsed.data] : [];
     });
     reply.header('cache-control', 'no-store');
-    return reply.code(200).send(githubRepositoriesResponseSchema.parse({ items }));
+    return reply
+      .code(200)
+      .send(githubRepositoriesResponseSchema.parse({ items }));
+  });
+
+  app.post('/api/v1/me/github/profile', async (request, reply) => {
+    const actor = await principal(request);
+    if (!actor) {
+      return sendProblem(
+        request,
+        reply,
+        401,
+        'AUTH_REQUIRED',
+        'Authentication required',
+        'Sign in to continue.',
+      );
+    }
+    const linked = await database
+      .select({ accessToken: account.accessToken })
+      .from(account)
+      .where(
+        and(eq(account.userId, actor.id), eq(account.providerId, 'github')),
+      )
+      .limit(1);
+    const token = linked[0]?.accessToken;
+    if (!token) {
+      return sendProblem(
+        request,
+        reply,
+        409,
+        'GITHUB_NOT_LINKED',
+        'GitHub account required',
+        'Link GitHub before publishing its profile.',
+      );
+    }
+    const upstream = await fetch('https://api.github.com/user', {
+      headers: {
+        accept: 'application/vnd.github+json',
+        authorization: `Bearer ${token}`,
+        'user-agent': 'Shipboard',
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!upstream.ok) {
+      return sendProblem(
+        request,
+        reply,
+        503,
+        'GITHUB_UNAVAILABLE',
+        'GitHub unavailable',
+        'Could not load your GitHub profile. Try again.',
+      );
+    }
+    const payload: unknown = await upstream.json();
+    const login =
+      payload && typeof payload === 'object' && 'login' in payload
+        ? (payload as { login?: unknown }).login
+        : undefined;
+    if (typeof login !== 'string' || !/^[A-Za-z0-9-]+$/.test(login)) {
+      throw new Error('GitHub profile response is invalid.');
+    }
+    await database
+      .update(user)
+      .set({ githubUsername: login })
+      .where(eq(user.id, actor.id));
+    request.log.info({ event: 'profile.github_linked', actorId: actor.id });
+    return reply
+      .header('cache-control', 'no-store')
+      .send(
+        currentUserSchema.parse(await profiles.current(actor.id, actor.email)),
+      );
   });
 
   app.post('/api/auth/sign-in/social', async (request, reply) => {
@@ -329,10 +410,29 @@ export function registerAuthRoutes(
         'Sign in to continue.',
       );
     }
+    const parsed = githubStartRequestSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return sendProblem(
+        request,
+        reply,
+        400,
+        'VALIDATION_FAILED',
+        'Invalid return destination',
+        'Choose a valid destination within Shipboard.',
+        validationErrors(parsed.error),
+      );
+    }
+    const returnTo = new URL(
+      parsed.data.returnTo,
+      config.WEB_ORIGIN,
+    ).toString();
     const response = await forwardPath(request, '/api/auth/link-social', {
       provider: 'github',
-      callbackURL: new URL('/boards/new', config.WEB_ORIGIN).toString(),
-      errorCallbackURL: new URL('/boards/new?error=github', config.WEB_ORIGIN).toString(),
+      callbackURL: returnTo,
+      errorCallbackURL: new URL(
+        '/settings?error=github',
+        config.WEB_ORIGIN,
+      ).toString(),
       disableRedirect: true,
     });
     if (!response.ok) {
@@ -418,7 +518,11 @@ export function registerAuthRoutes(
         'Sign in to continue.',
       );
     }
-    return reply.code(200).send(currentUserSchema.parse(actor));
+    return reply
+      .code(200)
+      .send(
+        currentUserSchema.parse(await profiles.current(actor.id, actor.email)),
+      );
   });
 
   return { principal };

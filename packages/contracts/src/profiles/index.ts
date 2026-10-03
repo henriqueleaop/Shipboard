@@ -24,19 +24,23 @@ export const usernameSchema = z
     message: 'This username is reserved for Shipboard.',
   });
 
-export const githubRepositoryUrlSchema = z.string().max(256).url().refine(
-  (value) => {
-    const url = new URL(value);
-    return (
-      url.protocol === 'https:' &&
-      url.hostname === 'github.com' &&
-      /^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/.test(url.pathname) &&
-      !url.search &&
-      !url.hash
-    );
-  },
-  { message: 'Enter the canonical URL of a public GitHub repository.' },
-);
+export const githubRepositoryUrlSchema = z
+  .string()
+  .max(256)
+  .url()
+  .refine(
+    (value) => {
+      const url = new URL(value);
+      return (
+        url.protocol === 'https:' &&
+        url.hostname === 'github.com' &&
+        /^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/.test(url.pathname) &&
+        !url.search &&
+        !url.hash
+      );
+    },
+    { message: 'Enter the canonical URL of a public GitHub repository.' },
+  );
 
 export const boardVisibilitySchema = z.enum(['PUBLIC', 'UNLISTED', 'PRIVATE']);
 
@@ -50,4 +54,39 @@ export const githubRepositoriesResponseSchema = z.strictObject({
   items: z.array(githubRepositorySchema),
 });
 
+export const githubProfileUrlSchema = z
+  .string()
+  .max(256)
+  .url()
+  .refine(
+    (value) => {
+      const url = new URL(value);
+      return (
+        url.protocol === 'https:' &&
+        url.hostname === 'github.com' &&
+        /^\/[A-Za-z0-9-]+\/?$/.test(url.pathname) &&
+        !url.search &&
+        !url.hash
+      );
+    },
+    { message: 'Enter the canonical URL of a GitHub profile.' },
+  );
+
+export const updateProfileRequestSchema = z.strictObject({
+  username: usernameSchema,
+});
+
+export const publicProfileBoardSchema = z.strictObject({
+  name: z.string(),
+  slug: z.string(),
+  description: z.string(),
+});
+
+export const publicProfileSchema = z.strictObject({
+  username: usernameSchema,
+  githubProfileUrl: githubProfileUrlSchema.nullable(),
+  boards: z.array(publicProfileBoardSchema),
+});
+
 export type BoardVisibility = z.infer<typeof boardVisibilitySchema>;
+export type PublicProfile = z.infer<typeof publicProfileSchema>;

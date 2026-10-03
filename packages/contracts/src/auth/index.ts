@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { githubProfileUrlSchema, usernameSchema } from '../profiles/index.js';
 
 export const authFieldLimits = { email: 254, password: 128 } as const;
 
@@ -41,6 +42,8 @@ export const signInRequestSchema = z.strictObject({
 export const currentUserSchema = z.strictObject({
   id: z.uuid(),
   email: z.email(),
+  username: usernameSchema,
+  githubProfileUrl: githubProfileUrlSchema.nullable(),
 });
 
 export const localReturnPathSchema = z
