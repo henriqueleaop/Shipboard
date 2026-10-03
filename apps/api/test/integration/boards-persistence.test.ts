@@ -57,10 +57,7 @@ describe('board persistence', () => {
       ]);
       expect(
         parallelSlug.filter((result) => result.status === 'fulfilled'),
-      ).toHaveLength(1);
-      expect(
-        parallelSlug.filter((result) => result.status === 'rejected'),
-      ).toHaveLength(1);
+      ).toHaveLength(2);
       await database.db.execute(sql`
         UPDATE board_idempotency SET expires_at = now() - interval '1 second'
         WHERE key = ${key}::uuid
@@ -87,7 +84,7 @@ describe('board persistence', () => {
           ),
         ).rejects.toMatchObject({ code: 'IDEMPOTENCY_IN_PROGRESS' });
       });
-      await expect(createBoard(unit, other, metadata)).rejects.toMatchObject({
+      await expect(createBoard(unit, owner, metadata)).rejects.toMatchObject({
         code: 'SLUG_CONFLICT',
       });
       await expect(

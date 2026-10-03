@@ -346,7 +346,13 @@ export function registerSuggestionRoutes(
         .header('location', location)
         .header('etag', `"${suggestion.version}"`)
         .code(201)
-        .send(present(persisted));
+        .send(
+          present({
+            suggestion,
+            voteCount: 0,
+            authorUsername: persisted.authorUsername,
+          }),
+        );
     },
   );
 

@@ -70,12 +70,16 @@ describe('suggestion HTTP journey', () => {
           url: '/api/v1/public/boards/roadmap',
         });
         expect(publicBoard.statusCode).toBe(200);
-        expect(publicBoard.json()).toEqual({
+        expect(publicBoard.json()).toMatchObject({
           id: board.id,
           name: board.name,
           slug: board.slug,
           description: board.description,
+          githubRepositoryUrl: null,
         });
+        expect(publicBoard.json().ownerUsername).toMatch(
+          /^member-[a-f0-9]{12}$/,
+        );
         expect(publicBoard.body).not.toContain(board.ownerId);
 
         const url = `/api/v1/boards/${board.id}/suggestions`;

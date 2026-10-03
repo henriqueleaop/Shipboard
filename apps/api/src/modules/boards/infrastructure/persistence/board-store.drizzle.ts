@@ -61,7 +61,8 @@ function translateUnique(error: unknown): never {
     'code' in cause &&
     cause.code === '23505' &&
     'constraint' in cause &&
-    cause.constraint === 'boards_slug_unique'
+    (cause.constraint === 'boards_slug_unique' ||
+      cause.constraint === 'boards_owner_slug_unique')
   ) {
     throw new BoardError('SLUG_CONFLICT');
   }
