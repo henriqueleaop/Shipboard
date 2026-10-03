@@ -4,8 +4,10 @@ import { resolve } from 'node:path';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import {
   boardResponseSchema,
+  currentUserSchema,
   myVotesResponseSchema,
   problemSchema,
+  publicProfileSchema,
   suggestionListResponseSchema,
   suggestionResponseSchema,
   voteStateResponseSchema,
@@ -81,6 +83,53 @@ describe('suggestion HTTP journey', () => {
           /^member-[a-f0-9]{12}$/,
         );
         expect(publicBoard.body).not.toContain(board.ownerId);
+        const ownerIdentity = currentUserSchema.parse(
+          (
+            await app.inject({
+              method: 'GET',
+              url: '/api/v1/me',
+              headers: { cookie: owner },
+            })
+          ).json(),
+        );
+        const canonicalBoard = await app.inject({
+          method: 'GET',
+          url: `/api/v1/public/boards/${ownerIdentity.username}/${board.slug}`,
+        });
+        expect(canonicalBoard.statusCode, canonicalBoard.body).toBe(200);
+        const profile = await app.inject({
+          method: 'GET',
+          url: `/api/v1/public/profiles/${ownerIdentity.username}`,
+        });
+        expect(profile.statusCode, profile.body).toBe(200);
+        expect(publicProfileSchema.parse(profile.json())).toMatchObject({
+          username: ownerIdentity.username,
+          githubProfileUrl: null,
+          boards: [expect.objectContaining({ slug: board.slug })],
+        });
+        const privateCreated = await app.inject({
+          method: 'POST',
+          url: '/api/v1/boards',
+          headers: { origin, cookie: owner },
+          payload: {
+            name: 'Private roadmap',
+            slug: 'private-roadmap',
+            description: '',
+            visibility: 'PRIVATE',
+          },
+        });
+        expect(privateCreated.statusCode, privateCreated.body).toBe(201);
+        const anonymousPrivate = await app.inject({
+          method: 'GET',
+          url: `/api/v1/public/boards/${ownerIdentity.username}/private-roadmap`,
+        });
+        expect(anonymousPrivate.statusCode).toBe(404);
+        const ownerPrivate = await app.inject({
+          method: 'GET',
+          url: `/api/v1/public/boards/${ownerIdentity.username}/private-roadmap`,
+          headers: { cookie: owner },
+        });
+        expect(ownerPrivate.statusCode, ownerPrivate.body).toBe(200);
 
         const url = `/api/v1/boards/${board.id}/suggestions`;
         const key = randomUUID();
